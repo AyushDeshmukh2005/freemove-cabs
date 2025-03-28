@@ -1,14 +1,33 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Car, CreditCard, History, Bell } from 'lucide-react';
+import { MapPin, Navigation, Car, CreditCard, History, Bell, Wallet, Settings, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import RideBookingForm from '@/components/RideBookingForm';
+import { getUserRides, Ride } from '@/services/rideService';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [recentRides, setRecentRides] = useState<Ride[]>([]);
+
+  useEffect(() => {
+    const fetchRecentRides = async () => {
+      if (user) {
+        try {
+          const rides = await getUserRides(user.id);
+          setRecentRides(rides.slice(0, 3)); // Get only the 3 most recent rides
+        } catch (error) {
+          console.error("Error fetching recent rides:", error);
+        }
+      }
+    };
+
+    fetchRecentRides();
+  }, [user]);
 
   const handleBookRide = () => {
     setIsLoading(true);
@@ -21,6 +40,14 @@ const Dashboard = () => {
         description: "Your ride has been booked successfully.",
       });
     }, 1500);
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -62,74 +89,24 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Left Sidebar */}
           <div className="md:col-span-1">
-            <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Book a Ride</h2>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-300">Pickup Location</label>
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                    <MapPin className="h-5 w-5 text-gocabs-primary mr-2" />
-                    <input 
-                      type="text" 
-                      placeholder="Enter pickup location" 
-                      className="bg-transparent outline-none w-full text-gray-800 dark:text-gray-200 text-sm"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-300">Destination</label>
-                  <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-                    <Navigation className="h-5 w-5 text-gocabs-primary mr-2" />
-                    <input 
-                      type="text" 
-                      placeholder="Enter destination" 
-                      className="bg-transparent outline-none w-full text-gray-800 dark:text-gray-200 text-sm"
-                    />
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <Button 
-                    className="w-full bg-gocabs-primary hover:bg-gocabs-primary/90"
-                    onClick={handleBookRide}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Finding Rides...' : 'Book Now'}
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <RideBookingForm />
             
             <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Ride Preferences</h2>
+              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Account Balance</h2>
               
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Eco-Friendly Mode</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-gocabs-primary"></div>
-                  </label>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Shared Rides</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-gocabs-primary"></div>
-                  </label>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-300">Premium Vehicles</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-gocabs-primary"></div>
-                  </label>
+              <div className="p-4 bg-gocabs-primary/5 rounded-lg mb-4">
+                <div className="flex items-center">
+                  <Wallet className="h-6 w-6 text-gocabs-primary mr-3" />
+                  <div>
+                    <span className="block text-sm text-gray-500 dark:text-gray-400">Available</span>
+                    <span className="block text-2xl font-bold text-gray-800 dark:text-white">$24.50</span>
+                  </div>
                 </div>
               </div>
+              
+              <Button variant="outline" className="w-full">
+                Add Money
+              </Button>
             </div>
           </div>
           
@@ -144,59 +121,100 @@ const Dashboard = () => {
             </div>
             
             <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Recent Activity</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Recent Activity</h2>
+                <Link to="/ride-history">
+                  <Button variant="ghost" size="sm" className="text-sm flex items-center">
+                    <History className="h-4 w-4 mr-1" /> View All
+                  </Button>
+                </Link>
+              </div>
               
               <div className="space-y-4">
-                <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
-                  <div className="p-2 bg-gocabs-primary/10 rounded-full mr-3">
-                    <Car className="h-5 w-5 text-gocabs-primary" />
+                {recentRides.length > 0 ? (
+                  recentRides.map((ride) => (
+                    <div key={ride.id} className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                      <div className="p-2 bg-gocabs-primary/10 rounded-full mr-3">
+                        <Car className="h-5 w-5 text-gocabs-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-gray-800 dark:text-white">
+                          {ride.startLocation.address.split(',')[0]} to {ride.endLocation.address.split(',')[0]}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Status: <span className="capitalize">{ride.status}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {formatDate(ride.createdAt)}
+                        </p>
+                      </div>
+                      <div className="ml-auto">
+                        <span className="text-sm font-medium text-gray-800 dark:text-white">${ride.fare.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center">
+                    <p className="text-gray-500 dark:text-gray-400 mb-2">No recent rides</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500">Book your first ride above!</p>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-800 dark:text-white">Downtown Ride</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">From: Home • To: Downtown</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Yesterday, 5:30 PM</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="text-sm font-medium text-gray-800 dark:text-white">$12.50</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
-                  <div className="p-2 bg-gocabs-primary/10 rounded-full mr-3">
-                    <CreditCard className="h-5 w-5 text-gocabs-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-800 dark:text-white">Added to Wallet</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Payment Method: Credit Card</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">2 days ago, 10:15 AM</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="text-sm font-medium text-gray-800 dark:text-white">$25.00</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-start p-3">
-                  <div className="p-2 bg-gocabs-primary/10 rounded-full mr-3">
-                    <History className="h-5 w-5 text-gocabs-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-800 dark:text-white">Airport Trip</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">From: Home • To: Airport</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Last week, 8:00 AM</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="text-sm font-medium text-gray-800 dark:text-white">$35.75</span>
-                  </div>
-                </div>
+                )}
               </div>
               
-              <div className="mt-4 text-center">
-                <Button variant="outline" size="sm" className="text-sm">
-                  View All History
-                </Button>
-              </div>
+              {recentRides.length > 0 && (
+                <div className="mt-4 text-center">
+                  <Link to="/ride-history">
+                    <Button variant="outline" size="sm" className="text-sm">
+                      View All History
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
+        </div>
+        
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+          <Link to="/settings/payment">
+            <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="p-3 bg-gocabs-primary/10 rounded-full inline-flex mb-2">
+                <CreditCard className="h-6 w-6 text-gocabs-primary" />
+              </div>
+              <h3 className="text-sm font-medium text-gray-800 dark:text-white">Payment Methods</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Manage cards & wallet</p>
+            </div>
+          </Link>
+          
+          <Link to="/settings/trips">
+            <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="p-3 bg-gocabs-primary/10 rounded-full inline-flex mb-2">
+                <Calendar className="h-6 w-6 text-gocabs-primary" />
+              </div>
+              <h3 className="text-sm font-medium text-gray-800 dark:text-white">Scheduled Rides</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Plan future trips</p>
+            </div>
+          </Link>
+          
+          <Link to="/settings/favorites">
+            <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="p-3 bg-gocabs-primary/10 rounded-full inline-flex mb-2">
+                <MapPin className="h-6 w-6 text-gocabs-primary" />
+              </div>
+              <h3 className="text-sm font-medium text-gray-800 dark:text-white">Saved Places</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Home, work & more</p>
+            </div>
+          </Link>
+          
+          <Link to="/settings">
+            <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer">
+              <div className="p-3 bg-gocabs-primary/10 rounded-full inline-flex mb-2">
+                <Settings className="h-6 w-6 text-gocabs-primary" />
+              </div>
+              <h3 className="text-sm font-medium text-gray-800 dark:text-white">Account Settings</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Preferences & security</p>
+            </div>
+          </Link>
         </div>
       </div>
     </div>

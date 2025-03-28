@@ -10,6 +10,8 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup"; 
 import Dashboard from "./pages/Dashboard";
+import RideTracking from "./pages/RideTracking";
+import RideHistory from "./pages/RideHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,16 @@ const App = () => (
             <Route path="/dashboard" element={
               <AuthGuard>
                 <Dashboard />
+              </AuthGuard>
+            } />
+            <Route path="/ride/:rideId" element={
+              <AuthGuard>
+                <RideTracking />
+              </AuthGuard>
+            } />
+            <Route path="/ride-history" element={
+              <AuthGuard>
+                <RideHistory />
               </AuthGuard>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
