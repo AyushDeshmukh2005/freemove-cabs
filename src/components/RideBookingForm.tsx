@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Navigation, Car, Leaf, Shield } from 'lucide-react';
+import { MapPin, Navigation, Car, Leaf, Shield, Percent, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { bookRide, calculateRoute, calculateFare } from '@/services/rideService';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 const RideBookingForm = () => {
   const { user } = useAuth();
@@ -23,12 +24,24 @@ const RideBookingForm = () => {
   
   const [fareEstimate, setFareEstimate] = useState<number | null>(null);
   const [showEstimate, setShowEstimate] = useState(false);
+  const [originalFare, setOriginalFare] = useState<number | null>(null);
+  const [discountApplied, setDiscountApplied] = useState(false);
 
   const calculateEstimate = () => {
     if (pickupLocation && destination) {
       const { distance, duration } = calculateRoute(pickupLocation, destination);
+      
+      // Store the standard fare for comparison
+      const standardFare = calculateFare(distance, duration, 'standard');
+      setOriginalFare(standardFare);
+      
+      // Calculate fare based on selected ride type
       const estimatedFare = calculateFare(distance, duration, rideType);
       setFareEstimate(estimatedFare);
+      
+      // Set discount flag if eco ride
+      setDiscountApplied(rideType === 'eco');
+      
       setShowEstimate(true);
     } else {
       toast({
@@ -125,7 +138,12 @@ const RideBookingForm = () => {
           <Label className="text-sm text-gray-600 dark:text-gray-300">Ride Type</Label>
           <RadioGroup 
             value={rideType} 
-            onValueChange={(value: 'standard' | 'premium' | 'eco') => setRideType(value)}
+            onValueChange={(value: 'standard' | 'premium' | 'eco') => {
+              setRideType(value);
+              if (showEstimate) {
+                calculateEstimate(); // Recalculate fare when ride type changes
+              }
+            }}
             className="flex flex-col space-y-2"
           >
             <div className="flex items-center space-x-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
@@ -150,12 +168,15 @@ const RideBookingForm = () => {
               </Label>
             </div>
             
-            <div className="flex items-center space-x-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="flex items-center space-x-2 border border-gray-200 dark:border-gray-700 rounded-lg p-3 relative">
               <RadioGroupItem value="eco" id="eco" />
               <Label htmlFor="eco" className="flex items-center cursor-pointer">
-                <Leaf className="h-5 w-5 text-gocabs-primary mr-2" />
+                <Leaf className="h-5 w-5 text-green-500 mr-2" />
                 <div>
-                  <p className="font-medium">Eco-Friendly</p>
+                  <div className="flex items-center">
+                    <p className="font-medium">Eco-Friendly</p>
+                    <Badge className="ml-2 bg-green-500 text-xs">10% OFF</Badge>
+                  </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Electric or hybrid vehicles for lower emissions</p>
                 </div>
               </Label>
@@ -191,8 +212,27 @@ const RideBookingForm = () => {
           <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-300">Estimated Fare:</span>
-              <span className="font-semibold text-gray-800 dark:text-white">${fareEstimate.toFixed(2)}</span>
+              <div className="text-right">
+                {discountApplied && originalFare && (
+                  <div className="flex items-center mb-1">
+                    <span className="text-xs text-gray-500 dark:text-gray-400 line-through mr-2">${originalFare.toFixed(2)}</span>
+                    <Badge className="bg-green-500 text-xs font-normal">
+                      <Percent className="h-3 w-3 mr-1" /> 10% ECO DISCOUNT
+                    </Badge>
+                  </div>
+                )}
+                <span className="font-semibold text-gray-800 dark:text-white">${fareEstimate.toFixed(2)}</span>
+              </div>
             </div>
+            
+            {rideType !== 'premium' && (
+              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center text-xs text-gray-600 dark:text-gray-300">
+                  <Users className="h-3 w-3 mr-1" />
+                  <span>You may get ride sharing suggestions for additional discounts</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
