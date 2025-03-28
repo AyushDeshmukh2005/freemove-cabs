@@ -1,8 +1,12 @@
 
 import { Button } from '@/components/ui/button';
 import { MapPin, Navigation, Star, Leaf, Car } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 const Hero = () => {
+  const { user } = useAuth();
+  
   return (
     <div className="pt-24 pb-16 md:pt-32 md:pb-24 bg-gradient-to-b from-white to-gray-50 dark:from-gocabs-secondary dark:to-gocabs-dark">
       <div className="container-custom">
@@ -17,12 +21,26 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              <Button className="bg-gocabs-primary hover:bg-gocabs-primary/90 text-white">
-                Book a Ride
-              </Button>
-              <Button variant="outline" className="border-2 border-gocabs-primary text-gocabs-primary hover:bg-gocabs-primary/10">
-                Become a Driver
-              </Button>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button className="bg-gocabs-primary hover:bg-gocabs-primary/90 text-white">
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/signup">
+                    <Button className="bg-gocabs-primary hover:bg-gocabs-primary/90 text-white">
+                      Book a Ride
+                    </Button>
+                  </Link>
+                  <Link to="/signup?type=driver">
+                    <Button variant="outline" className="border-2 border-gocabs-primary text-gocabs-primary hover:bg-gocabs-primary/10">
+                      Become a Driver
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
             
             <div className="flex flex-wrap gap-6 animate-fade-in" style={{ animationDelay: '0.4s' }}>
