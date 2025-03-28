@@ -1,6 +1,6 @@
 
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Star, Leaf } from 'lucide-react';
+import { MapPin, Navigation, Star, Leaf, Car } from 'lucide-react';
 
 const Hero = () => {
   return (

@@ -1,5 +1,5 @@
 
-import { MapPin, Car, CreditCard } from 'lucide-react';
+import { MapPin, Car, CreditCard, Leaf } from 'lucide-react';
 
 const HowItWorks = () => {
   const steps = [
