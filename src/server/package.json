@@ -5,9 +5,9 @@
   "description": "Backend server for GoCabs application",
   "main": "index.js",
   "scripts": {
-    "setup-db": "ts-node db/setup.ts",
-    "start": "ts-node index.ts",
-    "dev": "nodemon --exec ts-node index.ts"
+    "setup-db": "node db/setup.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "axios": "^1.6.7",
@@ -19,13 +19,6 @@
     "mysql2": "^3.6.5"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/jsonwebtoken": "^9.0.5",
-    "@types/node": "^20.10.5",
-    "nodemon": "^3.0.2",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "nodemon": "^3.0.2"
   }
 }
