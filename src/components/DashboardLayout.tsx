@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Bell, LogOut, Home, MapPin, History, Settings, Award, Clock, Shield } from 'lucide-react';
+import { Bell, LogOut, Home, MapPin, History, Settings, Award, Clock, Shield, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -100,6 +100,19 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <SidebarMenuItem>
                 <SidebarMenuButton 
                   asChild 
+                  isActive={location.pathname === '/notification-settings'}
+                  tooltip="Notifications"
+                >
+                  <Link to="/notification-settings">
+                    <BellOff className="h-5 w-5" />
+                    <span>Notifications</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  asChild 
                   isActive={location.pathname === '/theme-settings'}
                   tooltip="Themes"
                 >
@@ -145,6 +158,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 {location.pathname === '/dashboard' && 'Dashboard'}
                 {location.pathname === '/ride-history' && 'Ride History'}
                 {location.pathname === '/emergency-settings' && 'Emergency Settings'}
+                {location.pathname === '/notification-settings' && 'Notification Settings'}
                 {location.pathname === '/theme-settings' && 'Theme Settings'}
                 {location.pathname === '/driver-rewards' && 'Driver Rewards'}
                 {location.pathname.startsWith('/ride/') && 'Ride Tracking'}

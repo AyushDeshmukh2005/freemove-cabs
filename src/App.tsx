@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import ThemeSettings from "./pages/ThemeSettings";
 import EmergencySettings from "./pages/EmergencySettings";
 import DriverRewards from "./pages/DriverRewards";
+import NotificationSettings from "./pages/NotificationSettings";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,11 @@ const App = () => (
               <Route path="/driver-rewards" element={
                 <AuthGuard>
                   <DriverRewards />
+                </AuthGuard>
+              } />
+              <Route path="/notification-settings" element={
+                <AuthGuard>
+                  <NotificationSettings />
                 </AuthGuard>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
