@@ -1,7 +1,7 @@
 
-# GoCabs Backend
+# GoCabs Backend Server
 
-This is the backend server for the GoCabs application. It provides APIs for weather data, ride management, user authentication, and more.
+This is the backend server for the GoCabs application. It provides APIs for user authentication, ride management, weather data, and more.
 
 ## Prerequisites
 
@@ -9,7 +9,20 @@ This is the backend server for the GoCabs application. It provides APIs for weat
 - MySQL (v8 or higher)
 - npm or yarn
 
-## Setup
+## Project Structure
+
+```
+src/server/
+├── controllers/       # Controller functions for handling API requests
+├── database/          # Database setup, schema, and connection
+├── routes/            # API route definitions
+├── .env.example       # Example environment variables
+├── package.json       # Project dependencies
+├── server.js          # Main server entry point
+└── README.md          # Documentation
+```
+
+## Setup Instructions
 
 1. Install dependencies:
    ```bash
@@ -18,7 +31,7 @@ This is the backend server for the GoCabs application. It provides APIs for weat
    ```
 
 2. Configure environment variables:
-   Create a `.env` file in the `src/server` directory with the following variables:
+   Create a `.env` file in the `src/server` directory based on `.env.example`:
    ```
    DB_HOST=localhost
    DB_USER=root
@@ -51,6 +64,9 @@ This is the backend server for the GoCabs application. It provides APIs for weat
 ### Authentication
 - POST /api/users/register - Register a new user
 - POST /api/users/login - Login a user
+- GET /api/users/:id - Get user profile
+- PATCH /api/users/:id - Update user profile
+- PATCH /api/users/:id/quiet-hours - Update user's quiet hours settings
 
 ### Rides
 - POST /api/rides - Book a new ride
@@ -76,19 +92,3 @@ This is the backend server for the GoCabs application. It provides APIs for weat
 - POST /api/favorites/drivers - Save a favorite driver
 - GET /api/favorites/drivers/user/:userId - Get favorite drivers for a user
 - DELETE /api/favorites/drivers/:id - Delete a favorite driver
-
-## Database Schema
-
-The database consists of several tables:
-- users - User accounts
-- rides - Ride details
-- ride_stops - Additional stops for rides
-- favorite_routes - Saved routes
-- favorite_drivers - Saved drivers
-- driver_rewards - Driver reward points
-- driver_achievements - Driver achievements
-- quiet_hours - User notification preferences
-- weather_data - Weather data cache
-- landmarks - Notable locations
-
-See `db/schema.sql` for the complete database schema.

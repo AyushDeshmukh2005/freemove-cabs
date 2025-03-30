@@ -1,5 +1,5 @@
 
-const { pool } = require('../../config/database');
+const { pool } = require('../database/database');
 
 // Save a favorite route
 const saveFavoriteRoute = async (req, res) => {

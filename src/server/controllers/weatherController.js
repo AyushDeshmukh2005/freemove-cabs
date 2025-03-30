@@ -1,98 +1,120 @@
 
 const axios = require('axios');
-const { pool } = require('../../config/database');
+const { pool } = require('../database/database');
 
-// You would normally use a real weather API like OpenWeatherMap
-const WEATHER_API_KEY = process.env.WEATHER_API_KEY || 'your_api_key';
-const WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5';
-
+// Get current weather condition
 const getWeatherCondition = async (req, res) => {
   try {
     const { location } = req.params;
     
-    // For demo purposes, we'll use a simple mapping of conditions
-    // In production, you would call an actual weather API
-    const response = await axios.get(
-      `${WEATHER_API_URL}/weather?q=${location}&appid=${WEATHER_API_KEY}&units=metric`
+    // Check if we have cached weather data for this location
+    const [cachedData] = await pool.execute(
+      `SELECT * FROM weather_data 
+       WHERE location = ? 
+       AND recordedAt > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+       ORDER BY recordedAt DESC LIMIT 1`,
+      [location]
     );
     
-    // Map OpenWeatherMap conditions to our app's conditions
-    const weatherId = response.data.weather[0].id;
-    let condition = 'clear';
+    if (cachedData.length > 0) {
+      return res.json({ weather: cachedData[0] });
+    }
     
-    if (weatherId >= 200 && weatherId < 300) condition = 'storm';
-    else if (weatherId >= 300 && weatherId < 600) condition = 'rain';
-    else if (weatherId >= 600 && weatherId < 700) condition = 'snow';
-    else if (weatherId >= 700 && weatherId < 800) condition = 'cloudy';
-    else if (weatherId === 800) condition = 'clear';
-    else if (weatherId > 800) condition = 'cloudy';
+    // If no cached data, fetch from weather API
+    const apiKey = process.env.WEATHER_API_KEY || 'demo_key';
+    const response = await axios.get(
+      `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${apiKey}&units=metric`
+    );
     
-    res.json({ condition });
+    const weatherData = {
+      location: location,
+      condition: response.data.weather[0].main,
+      temperature: response.data.main.temp,
+      humidity: response.data.main.humidity,
+      windSpeed: response.data.wind.speed,
+      recordedAt: new Date()
+    };
+    
+    // Cache the weather data
+    await pool.execute(
+      `INSERT INTO weather_data 
+       (location, condition, temperature, humidity, windSpeed, recordedAt)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [
+        weatherData.location,
+        weatherData.condition,
+        weatherData.temperature,
+        weatherData.humidity,
+        weatherData.windSpeed
+      ]
+    );
+    
+    res.json({ weather: weatherData });
   } catch (error) {
-    console.error('Weather API error:', error);
-    // Fallback to a default condition
-    res.json({ condition: 'clear' });
+    console.error('Error getting weather condition:', error);
+    res.status(500).json({ error: 'Failed to get weather condition' });
   }
 };
 
+// Get weather forecast
 const getWeatherForecast = async (req, res) => {
   try {
     const { location } = req.params;
-    const { time } = req.query;
     
-    // Call to a weather API for forecast data
+    // Fetch from weather API
+    const apiKey = process.env.WEATHER_API_KEY || 'demo_key';
     const response = await axios.get(
-      `${WEATHER_API_URL}/forecast?q=${location}&appid=${WEATHER_API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${apiKey}&units=metric`
     );
     
-    // Process the forecast data
-    // For simplicity, we're just returning the first forecast item
-    const forecast = response.data.list[0];
+    // Format the forecast data
+    const forecast = response.data.list.slice(0, 8).map(item => ({
+      time: item.dt_txt,
+      condition: item.weather[0].main,
+      temperature: item.main.temp,
+      humidity: item.main.humidity,
+      windSpeed: item.wind.speed
+    }));
     
-    res.json({
-      condition: forecast.weather[0].main.toLowerCase(),
-      temperature: forecast.main.temp,
-      humidity: forecast.main.humidity,
-      windSpeed: forecast.wind.speed
-    });
+    res.json({ forecast });
   } catch (error) {
-    console.error('Weather forecast API error:', error);
-    // Return mock data as fallback
-    res.json({
-      condition: 'clear',
-      temperature: 20,
-      humidity: 50,
-      windSpeed: 5
-    });
+    console.error('Error getting weather forecast:', error);
+    res.status(500).json({ error: 'Failed to get weather forecast' });
   }
 };
 
-const getWeatherAdjustment = (req, res) => {
-  const { condition } = req.params;
-  
-  let adjustment = 0;
-  
-  switch (condition) {
-    case 'clear':
-      adjustment = -0.05; // 5% discount on nice days
-      break;
-    case 'cloudy':
-      adjustment = 0; // No adjustment
-      break;
-    case 'rain':
-      adjustment = 0.1; // 10% increase in rain
-      break;
-    case 'snow':
-      adjustment = 0.15; // 15% increase in snow
-      break;
-    case 'storm':
-      adjustment = 0.2; // 20% increase in storms
-      break;
-    default:
-      adjustment = 0;
+// Get price adjustment based on weather condition
+const getWeatherAdjustment = async (req, res) => {
+  try {
+    const { condition } = req.params;
+    
+    // Calculate price adjustment based on weather condition
+    let adjustment = 1.0; // Default: no adjustment
+    
+    switch (condition.toLowerCase()) {
+      case 'rain':
+      case 'drizzle':
+        adjustment = 1.2; // 20% increase
+        break;
+      case 'snow':
+        adjustment = 1.35; // 35% increase
+        break;
+      case 'thunderstorm':
+        adjustment = 1.5; // 50% increase
+        break;
+      case 'fog':
+      case 'mist':
+        adjustment = 1.15; // 15% increase
+        break;
+      default:
+        adjustment = 1.0;
+    }
+    
+    res.json({ adjustment });
+  } catch (error) {
+    console.error('Error getting weather adjustment:', error);
+    res.status(500).json({ error: 'Failed to get weather adjustment' });
   }
-  
-  res.json({ adjustment });
 };
 
 module.exports = {
