@@ -1,5 +1,9 @@
 
 const mysql = require('mysql2/promise');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
 
 // Database connection configuration
 const dbConfig = {
