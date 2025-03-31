@@ -1,69 +1,87 @@
-# Welcome to your Lovable project
 
-## Project info
+# GoCabs - Ride Sharing Application
 
-**URL**: https://lovable.dev/projects/d7e6ea71-195c-43a0-917b-387f2073c3c5
+GoCabs is a full-stack ride-sharing application with separate frontend and backend components.
 
-## How can I edit this code?
+## Project Structure
 
-There are several ways of editing your application.
+- `/src/FrontEnd` - React frontend application
+- `/src/BackEnd` - Node.js/Express backend server
+- `/src/BackEnd/Database` - MySQL database setup and connection
 
-**Use Lovable**
+## Setting Up the Project
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/d7e6ea71-195c-43a0-917b-387f2073c3c5) and start prompting.
+### Backend Setup
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Navigate to the backend directory:
+   ```bash
+   cd src/BackEnd
+   ```
 
-**Use your preferred IDE**
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. Configure environment variables:
+   Create a `.env` file in the `src` directory based on `.env.example`:
+   ```
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
+   DB_NAME=gocabs_db
+   JWT_SECRET=your_secret_key
+   PORT=5000
+   WEATHER_API_KEY=your_api_key
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+4. Set up the database:
+   ```bash
+   npm run setup-db
+   ```
 
-Follow these steps:
+5. Start the backend server:
+   ```bash
+   npm start
+   ```
+   
+   For development with auto-restart:
+   ```bash
+   npm run dev
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Frontend Setup
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. Make sure you have Node.js installed
 
-# Step 3: Install the necessary dependencies.
-npm i
+2. Start the frontend development server:
+   ```bash
+   npm run dev
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+3. Open your browser and navigate to http://localhost:5173
 
-**Edit a file directly in GitHub**
+## Features
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- User authentication and profiles
+- Ride booking and tracking
+- Favorite routes and drivers
+- Ride history and ratings
+- Driver rewards system
+- Weather-aware pricing
+- Split payments
+- Multiple stops for rides
+- Emergency contacts
+- Theme customization
+- Quiet hours settings
 
-**Use GitHub Codespaces**
+## Tech Stack
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- **Frontend**: React, TailwindCSS, React Router, Tanstack Query
+- **Backend**: Node.js, Express
+- **Database**: MySQL
+- **Authentication**: JWT
 
-## What technologies are used for this project?
+## API Documentation
 
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/d7e6ea71-195c-43a0-917b-387f2073c3c5) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+See the backend README for detailed API endpoint documentation.
