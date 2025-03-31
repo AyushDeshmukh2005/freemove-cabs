@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS rides (
   weatherAdjustment DECIMAL(5, 2),
   splitPaymentLink VARCHAR(255),
   nearbyLandmark VARCHAR(255),
+  isNegotiable BOOLEAN DEFAULT FALSE,
+  suggestedFare DECIMAL(10, 2),
   FOREIGN KEY (userId) REFERENCES users(id)
 );
 
@@ -54,6 +56,22 @@ CREATE TABLE IF NOT EXISTS ride_stops (
   isCompleted BOOLEAN DEFAULT FALSE,
   position INT NOT NULL,
   FOREIGN KEY (rideId) REFERENCES rides(id) ON DELETE CASCADE
+);
+
+-- Fare Negotiation Table
+CREATE TABLE IF NOT EXISTS fare_negotiations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  rideId INT NOT NULL,
+  userId INT NOT NULL,
+  driverId VARCHAR(255),
+  userOffer DECIMAL(10, 2) NOT NULL,
+  driverCounterOffer DECIMAL(10, 2),
+  status ENUM('pending', 'accepted', 'rejected', 'countered') NOT NULL DEFAULT 'pending',
+  createdAt DATETIME NOT NULL,
+  updatedAt DATETIME NOT NULL,
+  expiresAt DATETIME NOT NULL,
+  FOREIGN KEY (rideId) REFERENCES rides(id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users(id)
 );
 
 -- Favorite Routes Table
@@ -133,6 +151,22 @@ CREATE TABLE IF NOT EXISTS landmarks (
   createdAt DATETIME NOT NULL
 );
 
+-- Subscriptions Table (For monthly passes)
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL,
+  planType ENUM('basic', 'premium', 'unlimited') NOT NULL,
+  ridesTotal INT NOT NULL,
+  ridesRemaining INT NOT NULL,
+  startDate DATE NOT NULL,
+  endDate DATE NOT NULL,
+  status ENUM('active', 'expired', 'cancelled') NOT NULL DEFAULT 'active',
+  price DECIMAL(10, 2) NOT NULL,
+  createdAt DATETIME NOT NULL,
+  updatedAt DATETIME NOT NULL,
+  FOREIGN KEY (userId) REFERENCES users(id)
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_rides_userId ON rides(userId);
 CREATE INDEX idx_ride_stops_rideId ON ride_stops(rideId);
@@ -140,3 +174,6 @@ CREATE INDEX idx_favorite_routes_userId ON favorite_routes(userId);
 CREATE INDEX idx_favorite_drivers_userId ON favorite_drivers(userId);
 CREATE INDEX idx_quiet_hours_userId ON quiet_hours(userId);
 CREATE INDEX idx_landmarks_location ON landmarks(lat, lng);
+CREATE INDEX idx_fare_negotiations_rideId ON fare_negotiations(rideId);
+CREATE INDEX idx_fare_negotiations_userId ON fare_negotiations(userId);
+CREATE INDEX idx_subscriptions_userId ON subscriptions(userId);

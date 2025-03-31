@@ -69,6 +69,17 @@ const App = () => (
                   <NotificationSettings />
                 </AuthGuard>
               } />
+              <Route path="/subscriptions" element={
+                <AuthGuard>
+                  <DashboardLayout>
+                    {/* We'll add this component later */}
+                    <div className="p-6">
+                      <h1 className="text-2xl font-bold mb-4">Subscription Plans</h1>
+                      <p>Subscribe to monthly ride passes for discounted rates. Coming soon!</p>
+                    </div>
+                  </DashboardLayout>
+                </AuthGuard>
+              } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 import { databaseService } from "./databaseService";
 import { themeService } from "./themeService";
@@ -45,6 +46,8 @@ export type Ride = {
   weatherAdjustment?: number;
   splitPaymentLink?: string;
   nearbyLandmark?: string;
+  isNegotiable?: boolean;
+  suggestedFare?: number;
 };
 
 export type FavoriteRoute = {
@@ -156,7 +159,8 @@ export const bookRide = (
     rideMood?: 'chatty' | 'quiet' | 'work' | 'music',
     nearbyLandmark?: string,
     favoritedDriverId?: string
-  } = {}
+  } = {},
+  negotiatedFare?: number | null
 ): Promise<Ride> => {
   return new Promise(async (resolve) => {
     // Simulate API call
@@ -165,7 +169,11 @@ export const bookRide = (
       const weatherCondition = await weatherService.getCurrentWeather(startLocation);
       
       const { distance, duration } = calculateRoute(startLocation, endLocation, options.stops);
-      const fare = calculateFare(distance, duration, rideType, false, 0, weatherCondition);
+      
+      // Use negotiated fare if provided, otherwise calculate normally
+      const fare = negotiatedFare !== null && negotiatedFare !== undefined 
+        ? negotiatedFare 
+        : calculateFare(distance, duration, rideType, false, 0, weatherCondition);
       
       // Calculate weather adjustment percentage
       const weatherAdjustment = weatherService.getPriceAdjustmentForWeather(weatherCondition);
@@ -207,7 +215,9 @@ export const bookRide = (
         rideMood: options.rideMood,
         weatherAdjustment,
         splitPaymentLink,
-        nearbyLandmark: options.nearbyLandmark
+        nearbyLandmark: options.nearbyLandmark,
+        isNegotiable: negotiatedFare !== null && negotiatedFare !== undefined,
+        suggestedFare: negotiatedFare
       };
       
       // Add ride to database

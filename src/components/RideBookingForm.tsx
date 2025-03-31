@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Navigation, Car, Leaf, Shield, Percent, Users, Calendar, Clock } from 'lucide-react';
+import { MapPin, Navigation, Car, Leaf, Shield, Percent, Users, Calendar, Clock, HandCoins } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { 
   bookRide, 
@@ -31,11 +31,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 import LandmarkPicker from './ride/LandmarkPicker';
 import RideMoodSelector from './ride/RideMoodSelector';
 import FavoriteRoutes from './ride/FavoriteRoutes';
 import FavoriteDrivers from './ride/FavoriteDrivers';
 import NearbyEvents from './ride/NearbyEvents';
+import FareNegotiationForm from './FareNegotiationForm';
+import { createNegotiation, acceptCounterOffer, makeCounterOffer, getNegotiationById, getRideNegotiations, NegotiationRequest } from '@/services/negotiationService';
 
 const RideBookingForm = () => {
   const { user } = useAuth();
@@ -65,27 +68,63 @@ const RideBookingForm = () => {
   const [discountApplied, setDiscountApplied] = useState(false);
   const [weatherAdjustment, setWeatherAdjustment] = useState(0);
   
+  // Negotiation-related state
+  const [enableNegotiation, setEnableNegotiation] = useState(false);
+  const [negotiationId, setNegotiationId] = useState<string | undefined>(undefined);
+  const [negotiationStatus, setNegotiationStatus] = useState<'pending' | 'accepted' | 'rejected' | 'countered' | undefined>(undefined);
+  const [driverCounterOffer, setDriverCounterOffer] = useState<number | null>(null);
+  
   // Form state
   const [activeTab, setActiveTab] = useState('basic');
   const [showAddStop, setShowAddStop] = useState(false);
   const [newStop, setNewStop] = useState('');
+  const [tempRideId, setTempRideId] = useState<string | null>(null);
 
   // Get the current weather when the component mounts
   useEffect(() => {
     const getWeather = async () => {
       if (pickupLocation) {
-        const condition = await weatherService.getCurrentWeather(pickupLocation);
-        setWeatherCondition(condition);
-        
-        const adjustment = weatherService.getPriceAdjustmentForWeather(condition);
-        setWeatherAdjustment(adjustment);
+        try {
+          const condition = await weatherService.getCurrentWeather(pickupLocation);
+          setWeatherCondition(condition);
+          
+          const adjustment = weatherService.getPriceAdjustmentForWeather(condition);
+          setWeatherAdjustment(adjustment);
+        } catch (error) {
+          console.error("Error fetching weather:", error);
+        }
       }
     };
     
     getWeather();
   }, [pickupLocation]);
 
-  const calculateEstimate = () => {
+  // Check for negotiation updates if there's an active negotiation
+  useEffect(() => {
+    if (!negotiationId) return;
+    
+    const checkNegotiationStatus = async () => {
+      try {
+        const negotiation = await getNegotiationById(negotiationId);
+        
+        if (negotiation && negotiation.status !== negotiationStatus) {
+          setNegotiationStatus(negotiation.status);
+          
+          if (negotiation.status === 'countered' && negotiation.driverCounterOffer) {
+            setDriverCounterOffer(negotiation.driverCounterOffer);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking negotiation status:", error);
+      }
+    };
+    
+    const intervalId = setInterval(checkNegotiationStatus, 3000);
+    
+    return () => clearInterval(intervalId);
+  }, [negotiationId, negotiationStatus]);
+
+  const calculateEstimate = async () => {
     if (pickupLocation && destination) {
       const { distance, duration } = calculateRoute(pickupLocation, destination, additionalStops);
       
@@ -99,6 +138,9 @@ const RideBookingForm = () => {
       
       // Set discount flag if eco ride
       setDiscountApplied(rideType === 'eco');
+      
+      // Generate a temporary ride ID for negotiation flow
+      setTempRideId(`temp_${Math.random().toString(36).substring(2, 15)}`);
       
       setShowEstimate(true);
     } else {
@@ -149,13 +191,19 @@ const RideBookingForm = () => {
         bookingOptions.nearbyLandmark = selectedLandmark.name;
       }
       
+      // Use negotiated fare if negotiation is accepted
+      const finalFare = negotiationStatus === 'accepted' && driverCounterOffer 
+        ? driverCounterOffer 
+        : (negotiationStatus === 'accepted' ? fareEstimate : null);
+      
       const ride = await bookRide(
         user.id,
         pickupLocation,
         destination,
         rideType,
         paymentMethod,
-        bookingOptions
+        bookingOptions,
+        finalFare
       );
       
       toast({
@@ -256,6 +304,46 @@ const RideBookingForm = () => {
       toast({
         title: "Save Failed",
         description: "Could not save route as favorite",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmitNegotiation = async (amount: number) => {
+    if (!user || !tempRideId) return;
+    
+    try {
+      const negotiation = await createNegotiation(tempRideId, user.id, amount);
+      setNegotiationId(negotiation.id);
+      setNegotiationStatus('pending');
+      
+      // Update fare estimate to show the user's offer
+      setFareEstimate(amount);
+    } catch (error) {
+      console.error("Error creating negotiation:", error);
+      toast({
+        title: "Negotiation Failed",
+        description: "Could not submit your fare offer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAcceptCounterOffer = async (id: string) => {
+    if (!driverCounterOffer) return;
+    
+    try {
+      const success = await acceptCounterOffer(id);
+      
+      if (success) {
+        setNegotiationStatus('accepted');
+        setFareEstimate(driverCounterOffer);
+      }
+    } catch (error) {
+      console.error("Error accepting counter offer:", error);
+      toast({
+        title: "Acceptance Failed",
+        description: "Could not accept the counter offer",
         variant: "destructive",
       });
     }
@@ -470,9 +558,25 @@ const RideBookingForm = () => {
         </TabsContent>
         
         <TabsContent value="options" className="space-y-4 mt-2">
+          <div className="flex items-center space-x-2 border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20 p-3 rounded-lg">
+            <div className="flex-1">
+              <h3 className="font-medium flex items-center">
+                <HandCoins className="h-4 w-4 mr-2 text-amber-600" />
+                Enable Fare Negotiation
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Propose your own fare and negotiate with drivers
+              </p>
+            </div>
+            <Switch 
+              checked={enableNegotiation} 
+              onCheckedChange={setEnableNegotiation}
+            />
+          </div>
+          
           <RideMoodSelector 
-            value={rideMood} 
-            onChange={setRideMood} 
+            selectedMood={rideMood}
+            onMoodSelect={(mood) => setRideMood(mood as any)}
           />
           
           <Accordion type="single" collapsible className="w-full">
@@ -541,6 +645,20 @@ const RideBookingForm = () => {
               </div>
             </div>
             
+            {enableNegotiation && tempRideId && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <FareNegotiationForm 
+                  ride={{ id: tempRideId } as any}
+                  suggestedFare={fareEstimate}
+                  onSubmitOffer={handleSubmitNegotiation}
+                  onAcceptCounter={handleAcceptCounterOffer}
+                  driverCounterOffer={driverCounterOffer}
+                  negotiationId={negotiationId}
+                  negotiationStatus={negotiationStatus}
+                />
+              </div>
+            )}
+            
             {returnTime && (
               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between text-xs">
@@ -590,7 +708,7 @@ const RideBookingForm = () => {
           <Button 
             className="flex-1 bg-gocabs-primary hover:bg-gocabs-primary/90"
             onClick={handleBookRide}
-            disabled={isLoading || !pickupLocation || !destination}
+            disabled={isLoading || !pickupLocation || !destination || (enableNegotiation && negotiationStatus === 'pending')}
           >
             {isLoading ? 'Finding Rides...' : (scheduleTime ? 'Schedule Ride' : 'Book Now')}
           </Button>
