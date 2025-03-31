@@ -2,6 +2,7 @@
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import FeaturesSection from '@/components/Features';
+import UniqueFeatures from '@/components/UniqueFeatures';
 import HowItWorks from '@/components/HowItWorks';
 import Benefits from '@/components/Benefits';
 import DownloadCTA from '@/components/DownloadCTA';
@@ -14,6 +15,7 @@ const Index = () => {
       <main>
         <Hero />
         <FeaturesSection />
+        <UniqueFeatures />
         <HowItWorks />
         <Benefits />
         <DownloadCTA />

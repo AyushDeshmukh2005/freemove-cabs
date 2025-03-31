@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -76,6 +75,18 @@ const Navbar = () => {
               }}
             >
               Features
+            </a>
+            <a 
+              href="/#unique-features" 
+              className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gocabs-primary dark:hover:text-gocabs-primary transition-colors"
+              onClick={(e) => {
+                if (location.pathname === '/') {
+                  e.preventDefault();
+                  document.getElementById('unique-features')?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+            >
+              Unique Features
             </a>
             <a 
               href="/#how-it-works" 
@@ -186,6 +197,19 @@ const Navbar = () => {
               className="block py-2 text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors"
             >
               Features
+            </a>
+            <a 
+              href="/#unique-features" 
+              onClick={(e) => {
+                closeMenu();
+                if (location.pathname === '/') {
+                  e.preventDefault();
+                  document.getElementById('unique-features')?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="block py-2 text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors"
+            >
+              Unique Features
             </a>
             <a 
               href="/#how-it-works" 
