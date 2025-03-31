@@ -1,64 +1,42 @@
 
 const { pool } = require('../Database/database');
 
-// Create a new fare negotiation request
+// Create a new fare negotiation
 const createNegotiation = async (req, res) => {
   try {
-    const {
-      rideId,
-      userId,
-      userOffer
-    } = req.body;
+    const { rideId, userId, userOffer } = req.body;
     
-    // Check if ride exists
-    const [rides] = await pool.query('SELECT * FROM rides WHERE id = ?', [rideId]);
-    
-    if (rides.length === 0) {
-      return res.status(404).json({ success: false, message: 'Ride not found' });
+    if (!rideId || !userId || !userOffer) {
+      return res.status(400).json({ error: 'Required fields missing' });
     }
     
-    // Check if user exists
-    const [users] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+    // Set expiration time (e.g., 10 minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
     
-    if (users.length === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    
-    // Set expiration time (30 minutes from now)
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 30 * 60000);
-    
-    // Create negotiation
     const [result] = await pool.query(
-      `INSERT INTO fare_negotiations (
-        rideId, userId, userOffer, status, createdAt, updatedAt, expiresAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [rideId, userId, userOffer, 'pending', now, now, expiresAt]
+      `INSERT INTO fare_negotiations 
+       (rideId, userId, userOffer, status, createdAt, updatedAt, expiresAt) 
+       VALUES (?, ?, ?, 'pending', NOW(), NOW(), ?)`,
+      [rideId, userId, userOffer, expiresAt]
     );
     
-    // Update ride to mark it as negotiable
+    const negotiationId = result.insertId;
+    
+    // Update the ride to mark it as negotiable
     await pool.query(
-      'UPDATE rides SET isNegotiable = TRUE, suggestedFare = ? WHERE id = ?',
+      `UPDATE rides SET isNegotiable = true, suggestedFare = ? WHERE id = ?`,
       [userOffer, rideId]
     );
     
-    return res.status(201).json({
-      success: true,
+    return res.status(201).json({ 
+      id: negotiationId,
       message: 'Fare negotiation created successfully',
-      data: {
-        id: result.insertId,
-        rideId,
-        userId,
-        userOffer,
-        status: 'pending',
-        createdAt: now,
-        updatedAt: now,
-        expiresAt
-      }
+      expiresAt
     });
   } catch (error) {
     console.error('Error creating negotiation:', error);
-    return res.status(500).json({ success: false, message: 'Failed to create negotiation' });
+    return res.status(500).json({ error: 'Failed to create negotiation' });
   }
 };
 
@@ -67,132 +45,98 @@ const getRideNegotiations = async (req, res) => {
   try {
     const { rideId } = req.params;
     
-    // Get negotiations
     const [negotiations] = await pool.query(
-      'SELECT * FROM fare_negotiations WHERE rideId = ? ORDER BY createdAt DESC',
+      `SELECT * FROM fare_negotiations WHERE rideId = ? ORDER BY createdAt DESC`,
       [rideId]
     );
     
-    return res.status(200).json({ success: true, data: negotiations });
+    return res.status(200).json(negotiations);
   } catch (error) {
     console.error('Error fetching negotiations:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch negotiations' });
+    return res.status(500).json({ error: 'Failed to fetch negotiations' });
   }
 };
 
-// Respond to negotiation (driver)
+// Driver responds to a negotiation (accept, reject or counter)
 const respondToNegotiation = async (req, res) => {
   try {
     const { id } = req.params;
-    const { driverId, status, driverCounterOffer } = req.body;
+    const { driverId, response, counterOffer } = req.body;
     
-    // Check if negotiation exists
-    const [negotiations] = await pool.query('SELECT * FROM fare_negotiations WHERE id = ?', [id]);
-    
-    if (negotiations.length === 0) {
-      return res.status(404).json({ success: false, message: 'Negotiation not found' });
+    if (!driverId || !response) {
+      return res.status(400).json({ error: 'Required fields missing' });
     }
     
-    const negotiation = negotiations[0];
-    
-    // Validate status
-    if (!['accepted', 'rejected', 'countered'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+    if (response === 'countered' && !counterOffer) {
+      return res.status(400).json({ error: 'Counter offer is required' });
     }
     
-    // Update negotiation
-    const now = new Date();
-    const updateFields = ['status = ?', 'driverId = ?', 'updatedAt = ?'];
-    const updateValues = [status, driverId, now];
-    
-    if (status === 'countered' && driverCounterOffer) {
-      updateFields.push('driverCounterOffer = ?');
-      updateValues.push(driverCounterOffer);
-    }
-    
+    // Update the negotiation
     await pool.query(
-      `UPDATE fare_negotiations SET ${updateFields.join(', ')} WHERE id = ?`,
-      [...updateValues, id]
+      `UPDATE fare_negotiations SET 
+       driverId = ?, 
+       status = ?, 
+       driverCounterOffer = ?, 
+       updatedAt = NOW() 
+       WHERE id = ?`,
+      [driverId, response, counterOffer || null, id]
     );
     
-    // If accepted, update the ride with the new fare and driver
-    if (status === 'accepted') {
-      const newFare = negotiation.userOffer;
-      await pool.query(
-        'UPDATE rides SET fare = ?, driverId = ? WHERE id = ?',
-        [newFare, driverId, negotiation.rideId]
-      );
-    } else if (status === 'countered' && driverCounterOffer) {
-      // If countered, update the ride's suggestedFare
-      await pool.query(
-        'UPDATE rides SET suggestedFare = ? WHERE id = ?',
-        [driverCounterOffer, negotiation.rideId]
-      );
+    // If accepted, update the ride fare
+    if (response === 'accepted') {
+      const [negotiation] = await pool.query('SELECT * FROM fare_negotiations WHERE id = ?', [id]);
+      if (negotiation.length > 0) {
+        await pool.query(
+          'UPDATE rides SET fare = ? WHERE id = ?',
+          [negotiation[0].userOffer, negotiation[0].rideId]
+        );
+      }
     }
     
-    return res.status(200).json({
-      success: true,
-      message: `Negotiation ${status} successfully`,
-      data: {
-        id: parseInt(id),
-        status,
-        driverId,
-        ...(status === 'countered' && { driverCounterOffer }),
-        updatedAt: now
-      }
+    return res.status(200).json({ 
+      message: `Negotiation ${response} successfully`,
+      counterOffer: response === 'countered' ? counterOffer : null
     });
   } catch (error) {
     console.error('Error responding to negotiation:', error);
-    return res.status(500).json({ success: false, message: 'Failed to respond to negotiation' });
+    return res.status(500).json({ error: 'Failed to respond to negotiation' });
   }
 };
 
-// Accept counter offer (user)
+// User accepts a counter offer from driver
 const acceptCounterOffer = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Check if negotiation exists and is countered
-    const [negotiations] = await pool.query(
-      'SELECT * FROM fare_negotiations WHERE id = ? AND status = ?',
-      [id, 'countered']
-    );
+    // Get the negotiation details
+    const [negotiations] = await pool.query('SELECT * FROM fare_negotiations WHERE id = ?', [id]);
     
     if (negotiations.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Negotiation not found or not in countered state' 
-      });
+      return res.status(404).json({ error: 'Negotiation not found' });
     }
     
     const negotiation = negotiations[0];
     
-    // Update negotiation
-    const now = new Date();
+    if (negotiation.status !== 'countered') {
+      return res.status(400).json({ error: 'This negotiation does not have a counter offer to accept' });
+    }
+    
+    // Update the negotiation status
     await pool.query(
-      'UPDATE fare_negotiations SET status = ?, updatedAt = ? WHERE id = ?',
-      ['accepted', now, id]
+      'UPDATE fare_negotiations SET status = "accepted", updatedAt = NOW() WHERE id = ?',
+      [id]
     );
     
-    // Update the ride with the counter offer fare and driver
+    // Update the ride fare with the counter offer
     await pool.query(
-      'UPDATE rides SET fare = ?, driverId = ? WHERE id = ?',
-      [negotiation.driverCounterOffer, negotiation.driverId, negotiation.rideId]
+      'UPDATE rides SET fare = ? WHERE id = ?',
+      [negotiation.driverCounterOffer, negotiation.rideId]
     );
     
-    return res.status(200).json({
-      success: true,
-      message: 'Counter offer accepted successfully',
-      data: {
-        id: parseInt(id),
-        status: 'accepted',
-        fare: negotiation.driverCounterOffer,
-        updatedAt: now
-      }
-    });
+    return res.status(200).json({ message: 'Counter offer accepted successfully' });
   } catch (error) {
     console.error('Error accepting counter offer:', error);
-    return res.status(500).json({ success: false, message: 'Failed to accept counter offer' });
+    return res.status(500).json({ error: 'Failed to accept counter offer' });
   }
 };
 

@@ -19,6 +19,7 @@ import ThemeSettings from "./pages/ThemeSettings";
 import EmergencySettings from "./pages/EmergencySettings";
 import DriverRewards from "./pages/DriverRewards";
 import NotificationSettings from "./pages/NotificationSettings";
+import Subscriptions from "./pages/Subscriptions";
 
 const queryClient = new QueryClient();
 
@@ -71,13 +72,7 @@ const App = () => (
               } />
               <Route path="/subscriptions" element={
                 <AuthGuard>
-                  <DashboardLayout>
-                    {/* We'll add this component later */}
-                    <div className="p-6">
-                      <h1 className="text-2xl font-bold mb-4">Subscription Plans</h1>
-                      <p>Subscribe to monthly ride passes for discounted rates. Coming soon!</p>
-                    </div>
-                  </DashboardLayout>
+                  <Subscriptions />
                 </AuthGuard>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

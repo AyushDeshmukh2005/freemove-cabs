@@ -1,7 +1,7 @@
 
-# GoCabs - Ride Sharing Application
+# FreeMoves Cabs - Ride Sharing Application
 
-GoCabs is a full-stack ride-sharing application with separate frontend and backend components.
+FreeMoves Cabs is a full-stack ride-sharing application with separate frontend and backend components.
 
 ## Project Structure
 
@@ -74,6 +74,28 @@ GoCabs is a full-stack ride-sharing application with separate frontend and backe
 - Emergency contacts
 - Theme customization
 - Quiet hours settings
+- Fare negotiation system
+- Monthly subscription plans
+
+## Unique Features
+
+### Fare Negotiation System
+- Users can propose their own fare for rides
+- Drivers can accept, reject, or counter-offer
+- Real-time negotiation updates
+
+### Subscription-Based Rides
+- Monthly passes for regular commuters
+- Discounted rates on prepaid rides
+- Multiple tier options
+
+### Preferred Driver System
+- Save favorite drivers for future rides
+- Build a trusted network of drivers
+
+### Multi-Stop Booking
+- Add multiple destinations in a single ride
+- Enhanced convenience for users
 
 ## Tech Stack
 
@@ -81,7 +103,3 @@ GoCabs is a full-stack ride-sharing application with separate frontend and backe
 - **Backend**: Node.js, Express
 - **Database**: MySQL
 - **Authentication**: JWT
-
-## API Documentation
-
-See the backend README for detailed API endpoint documentation.
