@@ -1,30 +1,21 @@
 
 # FreeMoves Cabs - Ride Sharing Application
 
-FreeMoves Cabs is a full-stack ride-sharing application with separate frontend and backend components.
+FreeMoves Cabs is a ride-sharing application with separate frontend, backend, and database components.
 
 ## Project Structure
 
-- `/src/FrontEnd` - React frontend application
-- `/src/BackEnd` - Node.js/Express backend server
-- `/src/BackEnd/Database` - MySQL database setup and connection
+- `/FrontEnd` - React frontend application
+- `/BackEnd` - Node.js/Express backend server
+- `/Database` - MySQL database setup and connection
 
 ## Setting Up the Project
 
-### Backend Setup
+### Database Setup
 
-1. Navigate to the backend directory:
-   ```bash
-   cd src/BackEnd
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Configure environment variables:
-   Create a `.env` file in the `src` directory based on `.env.example`:
+1. Navigate to the project root directory
+2. Make sure you have MySQL installed and running
+3. Create a `.env` file in the root directory with your database credentials:
    ```
    DB_HOST=localhost
    DB_USER=root
@@ -34,13 +25,25 @@ FreeMoves Cabs is a full-stack ride-sharing application with separate frontend a
    PORT=5000
    WEATHER_API_KEY=your_api_key
    ```
-
-4. Set up the database:
+4. Run the database setup script:
    ```bash
+   cd BackEnd
    npm run setup-db
    ```
 
-5. Start the backend server:
+### Backend Setup
+
+1. Navigate to the backend directory:
+   ```bash
+   cd BackEnd
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the backend server:
    ```bash
    npm start
    ```
@@ -53,13 +56,17 @@ FreeMoves Cabs is a full-stack ride-sharing application with separate frontend a
 ### Frontend Setup
 
 1. Make sure you have Node.js installed
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-2. Start the frontend development server:
+3. Start the frontend development server:
    ```bash
    npm run dev
    ```
 
-3. Open your browser and navigate to http://localhost:5173
+4. Open your browser and navigate to http://localhost:8080
 
 ## Features
 
@@ -76,26 +83,6 @@ FreeMoves Cabs is a full-stack ride-sharing application with separate frontend a
 - Quiet hours settings
 - Fare negotiation system
 - Monthly subscription plans
-
-## Unique Features
-
-### Fare Negotiation System
-- Users can propose their own fare for rides
-- Drivers can accept, reject, or counter-offer
-- Real-time negotiation updates
-
-### Subscription-Based Rides
-- Monthly passes for regular commuters
-- Discounted rates on prepaid rides
-- Multiple tier options
-
-### Preferred Driver System
-- Save favorite drivers for future rides
-- Build a trusted network of drivers
-
-### Multi-Stop Booking
-- Add multiple destinations in a single ride
-- Enhanced convenience for users
 
 ## Tech Stack
 
