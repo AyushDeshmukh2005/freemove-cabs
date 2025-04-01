@@ -14,7 +14,7 @@ const weatherRoutes = require('./routes/weatherRoutes');
 const negotiationRoutes = require('./routes/negotiationRoutes');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // Create Express app
 const app = express();
