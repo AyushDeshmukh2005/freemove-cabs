@@ -49,3 +49,27 @@ export const getWeatherAdjustment = async (condition: string): Promise<number> =
     throw new Error('Failed to calculate weather adjustment');
   }
 };
+
+// Add a simple pricing adjustment calculation for weather
+export const weatherService = {
+  getCurrentWeather: async (location: string): Promise<string> => {
+    // This would call an actual weather API in a real implementation
+    const conditions = ['clear', 'cloudy', 'rainy', 'snowy', 'windy', 'stormy'];
+    return conditions[Math.floor(Math.random() * conditions.length)];
+  },
+  
+  getPriceAdjustmentForWeather: (condition: string): number => {
+    switch (condition.toLowerCase()) {
+      case 'rainy':
+        return 1.15; // 15% surge
+      case 'snowy':
+        return 1.25; // 25% surge
+      case 'stormy':
+        return 1.35; // 35% surge
+      case 'clear':
+        return 0.95; // 5% discount on nice days
+      default:
+        return 1.0; // No adjustment
+    }
+  }
+};

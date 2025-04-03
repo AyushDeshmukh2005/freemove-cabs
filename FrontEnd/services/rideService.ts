@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { getWeatherAdjustment } from './weatherService';
+import { weatherService } from './weatherService';
 import { db } from '@database/databaseService';
 
 export interface RideLocation {
@@ -20,7 +20,7 @@ export interface RideStop {
 }
 
 export interface FavoriteRoute {
-  id?: string;
+  id: string;
   userId: string;
   name: string;
   startLocation: RideLocation;
@@ -29,7 +29,7 @@ export interface FavoriteRoute {
 }
 
 export interface FavoriteDriver {
-  id?: string;
+  id: string;
   userId: string;
   driverId: string;
   name?: string;
@@ -68,27 +68,23 @@ export interface Ride {
 
 // Book a new ride
 export const bookRide = async (
-  userId: string, 
-  startLocation: RideLocation, 
-  endLocation: RideLocation,
+  userId: string,
+  pickupLocation: string,
+  destination: string,
   rideType: 'standard' | 'premium' | 'eco',
   paymentMethod: 'cash' | 'card' | 'wallet',
-  isShared: boolean,
-  stops?: RideLocation[],
-  rideMood?: 'chatty' | 'quiet' | 'work' | 'music',
-  nearbyLandmark?: string
+  options?: any,
+  fareOverride?: number
 ): Promise<Ride> => {
   try {
     const response = await axios.post('/api/rides', {
       userId,
-      startLocation,
-      endLocation,
+      pickupLocation,
+      destination,
       rideType,
       paymentMethod,
-      isShared,
-      stops,
-      rideMood,
-      nearbyLandmark
+      options,
+      fareOverride
     });
     return response.data.data;
   } catch (error) {
@@ -98,68 +94,80 @@ export const bookRide = async (
 };
 
 // Calculate route between two locations
-export const calculateRoute = async (
-  startLocation: RideLocation, 
-  endLocation: RideLocation
-): Promise<{distance: number, duration: number}> => {
-  try {
-    // This would normally call a mapping API
-    // Simulating with dummy data
-    return {
-      distance: 10.5, // km
-      duration: 25 // minutes
-    };
-  } catch (error) {
-    console.error('Error calculating route:', error);
-    throw new Error('Failed to calculate route');
-  }
+export const calculateRoute = (
+  pickupLocation: string,
+  destination: string,
+  stops: string[] = []
+): { distance: number, duration: number } => {
+  // This would normally call a mapping API
+  // Simulating with dummy data
+  const baseDistance = 10.5; // km
+  const baseDuration = 25; // minutes
+  
+  // Add distance and time for additional stops
+  const extraDistance = stops.length * 1.5;
+  const extraDuration = stops.length * 5;
+  
+  return {
+    distance: baseDistance + extraDistance,
+    duration: baseDuration + extraDuration
+  };
 };
 
 // Calculate ride fare
-export const calculateRideFare = async (
-  distance: number, 
-  duration: number, 
-  rideType: 'standard' | 'premium' | 'eco',
-  isShared: boolean,
+export const calculateFare = (
+  distance: number,
+  duration: number,
+  rideType: 'standard' | 'premium' | 'eco' = 'standard',
+  isShared: boolean = false,
+  appliedDiscount: number = 0,
   weatherCondition?: string
-): Promise<number> => {
-  try {
-    let baseFare = 5.0; // Base fare in dollars
-    let perKmRate = 1.5; // Rate per kilometer
-    let perMinuteRate = 0.3; // Rate per minute
-    
-    // Adjust rates based on ride type
-    if (rideType === 'premium') {
-      baseFare = 8.0;
-      perKmRate = 2.5;
-      perMinuteRate = 0.5;
-    } else if (rideType === 'eco') {
-      baseFare = 4.0;
-      perKmRate = 1.2;
-      perMinuteRate = 0.2;
-    }
-    
-    // Calculate initial fare
-    let fare = baseFare + (distance * perKmRate) + (duration * perMinuteRate);
-    
-    // Apply shared ride discount
-    if (isShared) {
-      fare = fare * 0.8; // 20% discount for shared rides
-    }
-    
-    // Apply weather adjustment if condition provided
-    if (weatherCondition) {
-      const adjustment = await getWeatherAdjustment(weatherCondition);
-      fare = fare * adjustment;
-    }
-    
-    // Round to two decimal places
-    return Math.round(fare * 100) / 100;
-  } catch (error) {
-    console.error('Error calculating fare:', error);
-    throw new Error('Failed to calculate ride fare');
+): number => {
+  let baseFare = 5.0; // Base fare in dollars
+  let perKmRate = 1.5; // Rate per kilometer
+  let perMinuteRate = 0.3; // Rate per minute
+  
+  // Adjust rates based on ride type
+  if (rideType === 'premium') {
+    baseFare = 8.0;
+    perKmRate = 2.5;
+    perMinuteRate = 0.5;
+  } else if (rideType === 'eco') {
+    baseFare = 4.0;
+    perKmRate = 1.2;
+    perMinuteRate = 0.2;
   }
+  
+  // Calculate initial fare
+  let fare = baseFare + (distance * perKmRate) + (duration * perMinuteRate);
+  
+  // Apply shared ride discount
+  if (isShared) {
+    fare = fare * 0.8; // 20% discount for shared rides
+  }
+  
+  // Apply eco discount
+  if (rideType === 'eco') {
+    fare = fare * 0.9; // 10% discount for eco-friendly rides
+  }
+  
+  // Apply custom discount if any
+  if (appliedDiscount > 0) {
+    fare = fare * (1 - (appliedDiscount / 100));
+  }
+  
+  // Apply weather adjustment if condition provided
+  if (weatherCondition) {
+    const adjustment = weatherService.getPriceAdjustmentForWeather(weatherCondition);
+    fare = fare * adjustment;
+  }
+  
+  // Round to two decimal places
+  return Math.round(fare * 100) / 100;
 };
+
+// Alias for backward compatibility
+export const calculateRideFare = calculateFare;
 
 // Get a ride by ID
 export const getRideById = async (id: string): Promise<Ride> => {
@@ -227,9 +235,9 @@ export const cancelRide = async (rideId: string, reason?: string): Promise<Ride>
 };
 
 // Add stop to ride
-export const addStopToRide = async (rideId: string, stop: RideLocation): Promise<Ride> => {
+export const addStopToRide = async (rideId: string, stopAddress: string): Promise<Ride> => {
   try {
-    const response = await axios.post(`/api/rides/${rideId}/stops`, { stop });
+    const response = await axios.post(`/api/rides/${rideId}/stops`, { address: stopAddress });
     return response.data.data;
   } catch (error) {
     console.error('Error adding stop:', error);
@@ -238,7 +246,7 @@ export const addStopToRide = async (rideId: string, stop: RideLocation): Promise
 };
 
 // Change ride destination
-export const changeRideDestination = async (rideId: string, newDestination: RideLocation): Promise<Ride> => {
+export const changeRideDestination = async (rideId: string, newDestination: string): Promise<Ride> => {
   try {
     const response = await axios.patch(`/api/rides/${rideId}/destination`, { destination: newDestination });
     return response.data.data;
@@ -249,10 +257,13 @@ export const changeRideDestination = async (rideId: string, newDestination: Ride
 };
 
 // Generate split payment link
-export const generateSplitPaymentLink = async (rideId: string, amount: number): Promise<string> => {
+export const generateSplitPaymentLink = async (rideId: string, numberOfPeople: number): Promise<{ link: string, amount: number }> => {
   try {
-    const response = await axios.post(`/api/rides/${rideId}/split-payment`, { amount });
-    return response.data.data.paymentLink;
+    const response = await axios.post(`/api/rides/${rideId}/split-payment`, { numberOfPeople });
+    return {
+      link: response.data.data.paymentLink,
+      amount: response.data.data.amount
+    };
   } catch (error) {
     console.error('Error generating split payment link:', error);
     throw new Error('Failed to generate payment link');
@@ -271,9 +282,19 @@ export const applyRidesharingDiscount = async (rideId: string): Promise<Ride> =>
 };
 
 // Save favorite route
-export const saveFavoriteRoute = async (route: Omit<FavoriteRoute, 'id' | 'createdAt'>): Promise<FavoriteRoute> => {
+export const saveFavoriteRoute = async (
+  userId: string,
+  name: string,
+  startLocation: RideLocation,
+  endLocation: RideLocation
+): Promise<FavoriteRoute> => {
   try {
-    const response = await axios.post('/api/favorites/routes', route);
+    const response = await axios.post('/api/favorites/routes', {
+      userId,
+      name,
+      startLocation,
+      endLocation
+    });
     return response.data.data;
   } catch (error) {
     console.error('Error saving favorite route:', error);
@@ -303,9 +324,19 @@ export const deleteFavoriteRoute = async (id: string): Promise<void> => {
 };
 
 // Save favorite driver
-export const saveFavoriteDriver = async (data: Omit<FavoriteDriver, 'id' | 'createdAt'>): Promise<FavoriteDriver> => {
+export const saveFavoriteDriver = async (
+  userId: string,
+  driverId: string,
+  name?: string,
+  rating?: number
+): Promise<FavoriteDriver> => {
   try {
-    const response = await axios.post('/api/favorites/drivers', data);
+    const response = await axios.post('/api/favorites/drivers', {
+      userId,
+      driverId,
+      name,
+      rating
+    });
     return response.data.data;
   } catch (error) {
     console.error('Error saving favorite driver:', error);

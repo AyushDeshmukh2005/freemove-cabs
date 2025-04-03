@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Heart, Star, Route, Plus, X, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { FavoriteRoute, getFavoriteRoutes, deleteFavoriteRoute } from '@/services/rideService';
+import { getFavoriteRoutes, deleteFavoriteRoute } from '@/services/rideService';
 import {
   Card,
   CardContent,
@@ -15,6 +15,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from '@/components/ui/badge';
+
+interface RideLocation {
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+interface FavoriteRoute {
+  id: string;
+  userId: string;
+  name: string;
+  startLocation: RideLocation;
+  endLocation: RideLocation;
+  createdAt?: Date;
+}
 
 interface FavoriteRoutesProps {
   onSelect: (route: FavoriteRoute) => void;

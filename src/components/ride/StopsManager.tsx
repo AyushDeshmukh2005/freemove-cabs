@@ -5,7 +5,17 @@ import { Input } from '@/components/ui/input';
 import { MapPin, Plus, X, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { RideStop, addStopToRide, changeRideDestination } from '@/services/rideService';
+import { addStopToRide, changeRideDestination } from '@/services/rideService';
+
+interface RideStop {
+  id?: string;
+  rideId?: string;
+  address: string;
+  lat: number;
+  lng: number;
+  isCompleted?: boolean;
+  position: number;
+}
 
 interface StopsManagerProps {
   rideId: string;

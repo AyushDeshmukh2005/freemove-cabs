@@ -44,7 +44,11 @@ const FareNegotiationDialog: React.FC<FareNegotiationDialogProps> = ({
     setIsSubmitting(true);
 
     try {
-      await negotiateRideFare(rideId, userId, proposedFare, message);
+      await negotiateRideFare({
+        rideId,
+        userId,
+        userOffer: proposedFare
+      });
       
       toast({
         title: 'Negotiation Submitted',

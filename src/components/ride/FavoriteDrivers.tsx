@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { User, Star, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { FavoriteDriver, getFavoriteDrivers, deleteFavoriteDriver } from '@/services/rideService';
+import { getFavoriteDrivers, deleteFavoriteDriver } from '@/services/rideService';
 import {
   Card,
   CardContent,
@@ -14,6 +14,15 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from '@/components/ui/badge';
+
+interface FavoriteDriver {
+  id: string;
+  userId: string;
+  driverId: string;
+  name?: string;
+  rating?: number;
+  createdAt?: Date;
+}
 
 interface FavoriteDriversProps {
   onSelect: (driverId: string) => void;
