@@ -1,140 +1,112 @@
 
 import axios from 'axios';
-import { db } from '../../Database/database';
+import { db } from '@database/databaseService';
 
-export type NegotiationRequest = {
+export interface NegotiationRequest {
   rideId: string;
   userId: string;
-  userOffer: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'countered';
-  driverCounterOffer?: number;
-};
+  proposedFare: number;
+  message?: string;
+}
 
-export type Negotiation = {
+export interface Negotiation {
   id: string;
   rideId: string;
   userId: string;
+  driverId: string;
   userOffer: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'countered';
   driverCounterOffer?: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'countered';
   createdAt: Date;
   updatedAt: Date;
-};
+  expiresAt: Date;
+}
 
-// Create a new fare negotiation
-export const createNegotiation = async (
+// Function to send a fare negotiation request
+export const negotiateRideFare = async (
   rideId: string,
   userId: string,
-  userOffer: number
+  proposedFare: number,
+  message?: string
 ): Promise<Negotiation> => {
   try {
-    const negotiation: Negotiation = {
-      id: `neg-${Date.now()}`,
+    const response = await axios.post('/api/negotiations', {
       rideId,
       userId,
-      userOffer,
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    await db.insert('negotiations', negotiation);
-    return negotiation;
+      proposedFare,
+      message
+    });
+    return response.data.data;
   } catch (error) {
-    console.error('Error creating negotiation:', error);
-    throw new Error('Failed to create negotiation');
+    console.error('Error negotiating fare:', error);
+    throw new Error('Failed to submit negotiation request');
   }
 };
 
-// Accept counter offer from driver
-export const acceptCounterOffer = async (negotiationId: string): Promise<boolean> => {
+// Get negotiation by ID
+export const getNegotiationById = async (id: string): Promise<Negotiation> => {
   try {
-    const negotiation = await db.getById('negotiations', negotiationId) as Negotiation;
-    
-    if (!negotiation) {
-      throw new Error('Negotiation not found');
-    }
-    
-    const updatedNegotiation = {
-      ...negotiation,
-      status: 'accepted',
-      updatedAt: new Date()
-    };
-    
-    await db.update('negotiations', negotiationId, updatedNegotiation);
-    return true;
+    const response = await axios.get(`/api/negotiations/${id}`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching negotiation:', error);
+    throw new Error('Failed to fetch negotiation');
+  }
+};
+
+// Accept a negotiation
+export const acceptNegotiation = async (negotiationId: string): Promise<Negotiation> => {
+  try {
+    const response = await axios.patch(`/api/negotiations/${negotiationId}/accept`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error accepting negotiation:', error);
+    throw new Error('Failed to accept negotiation');
+  }
+};
+
+// Reject a negotiation
+export const rejectNegotiation = async (negotiationId: string): Promise<Negotiation> => {
+  try {
+    const response = await axios.patch(`/api/negotiations/${negotiationId}/reject`);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error rejecting negotiation:', error);
+    throw new Error('Failed to reject negotiation');
+  }
+};
+
+// Make counter offer for a negotiation
+export const makeCounterOffer = async (negotiationId: string, counterOffer: number): Promise<Negotiation> => {
+  try {
+    const response = await axios.patch(`/api/negotiations/${negotiationId}/counter`, {
+      counterOffer
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error('Error making counter offer:', error);
+    throw new Error('Failed to submit counter offer');
+  }
+};
+
+// Accept a counter offer
+export const acceptCounterOffer = async (negotiationId: string): Promise<Negotiation> => {
+  try {
+    const response = await axios.patch(`/api/negotiations/${negotiationId}/accept-counter`);
+    return response.data.data;
   } catch (error) {
     console.error('Error accepting counter offer:', error);
     throw new Error('Failed to accept counter offer');
   }
 };
 
-// Make a counter offer (driver side)
-export const makeCounterOffer = async (
-  negotiationId: string,
-  driverCounterOffer: number
-): Promise<Negotiation> => {
+// Create a new negotiation
+export const createNegotiation = async (data: NegotiationRequest): Promise<Negotiation> => {
   try {
-    const negotiation = await db.getById('negotiations', negotiationId) as Negotiation;
-    
-    if (!negotiation) {
-      throw new Error('Negotiation not found');
-    }
-    
-    const updatedNegotiation = {
-      ...negotiation,
-      status: 'countered',
-      driverCounterOffer,
-      updatedAt: new Date()
-    } as Negotiation;
-    
-    await db.update('negotiations', negotiationId, updatedNegotiation);
-    return updatedNegotiation;
+    const response = await axios.post('/api/negotiations', data);
+    return response.data.data;
   } catch (error) {
-    console.error('Error making counter offer:', error);
-    throw new Error('Failed to make counter offer');
-  }
-};
-
-// Get negotiation by ID
-export const getNegotiationById = async (negotiationId: string): Promise<Negotiation | null> => {
-  try {
-    return await db.getById('negotiations', negotiationId) as Negotiation;
-  } catch (error) {
-    console.error('Error fetching negotiation:', error);
-    throw new Error('Failed to get negotiation');
-  }
-};
-
-// Get all negotiations for a ride
-export const getRideNegotiations = async (rideId: string): Promise<Negotiation[]> => {
-  try {
-    return await db.query('negotiations', { rideId }) as Negotiation[];
-  } catch (error) {
-    console.error('Error fetching ride negotiations:', error);
-    throw new Error('Failed to get ride negotiations');
-  }
-};
-
-// Accept a negotiation (driver side)
-export const acceptNegotiation = async (negotiationId: string): Promise<boolean> => {
-  try {
-    const negotiation = await db.getById('negotiations', negotiationId) as Negotiation;
-    
-    if (!negotiation) {
-      throw new Error('Negotiation not found');
-    }
-    
-    const updatedNegotiation = {
-      ...negotiation,
-      status: 'accepted',
-      updatedAt: new Date()
-    };
-    
-    await db.update('negotiations', negotiationId, updatedNegotiation);
-    return true;
-  } catch (error) {
-    console.error('Error accepting negotiation:', error);
-    throw new Error('Failed to accept negotiation');
+    console.error('Error creating negotiation:', error);
+    throw new Error('Failed to create negotiation');
   }
 };

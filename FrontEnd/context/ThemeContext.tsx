@@ -15,7 +15,7 @@ export type ThemeContextType = {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
   customTheme: Theme | null;
-  saveCustomTheme: (theme: Omit<Theme, "id">) => Promise<Theme>;
+  saveCustomTheme: (theme: Omit<Theme, "id" | "userId">) => Promise<Theme>;
   resetToDefaultTheme: () => void;
   isCustomTheme: boolean;
 };
@@ -53,7 +53,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setThemeState(savedTheme);
         
         // Check if user has a custom theme
-        const userTheme = await themeService.getUserTheme();
+        const userTheme = await themeService.getUserTheme("current-user");
         if (userTheme) {
           setCustomTheme(userTheme);
         }
@@ -123,7 +123,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTheme(newTheme);
   };
   
-  const saveCustomTheme = async (themeData: Omit<Theme, "id">): Promise<Theme> => {
+  const saveCustomTheme = async (themeData: Omit<Theme, "id" | "userId">): Promise<Theme> => {
     try {
       const savedTheme = await themeService.saveTheme({
         ...themeData,

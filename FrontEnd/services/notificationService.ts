@@ -1,184 +1,82 @@
-import { db } from '../../Database/database';
 
-// Types
-export type Notification = {
-  id: string;
-  userId: string;
-  type: 'ride' | 'payment' | 'promo' | 'system';
-  message: string;
-  data: any;
-  read: boolean;
-  createdAt: Date;
-};
+import axios from 'axios';
+import { db } from '@database/databaseService';
 
-export type QuietHours = {
-  id: string;
+export interface QuietHours {
+  id?: string;
   userId: string;
   enabled: boolean;
-  startTime: string;
-  endTime: string;
-  daysOfWeek: string[];
-};
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  daysOfWeek: string[]; // e.g. ["monday", "tuesday", ...]
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-export type NotificationSettings = {
-  id: string;
+export interface NotificationSettings {
+  id?: string;
   userId: string;
-  ride: boolean;
-  payment: boolean;
-  promo: boolean;
-  system: boolean;
-};
+  rideUpdates: boolean;
+  promotions: boolean;
+  driverArrival: boolean;
+  paymentReceipts: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+}
 
 export const notificationService = {
-  getSettings: async (userId: string): Promise<NotificationSettings> => {
-    // Implementation would go here
-    return {
-      id: 'settings-1',
-      userId,
-      ride: true,
-      payment: true,
-      promo: true,
-      system: true
-    };
-  },
-  
-  updateSettings: async (userId: string, settings: Partial<NotificationSettings>): Promise<NotificationSettings> => {
-    // Implementation would go here
-    return {
-      id: 'settings-1',
-      userId,
-      ride: true,
-      payment: true,
-      promo: true,
-      system: true,
-      ...settings
-    };
-  },
-
+  // Get quiet hours for a user
   getQuietHours: async (userId: string): Promise<QuietHours> => {
-    // Implementation would go here
-    return {
-      id: 'quiet-1',
-      userId,
-      enabled: false,
-      startTime: '22:00',
-      endTime: '07:00',
-      daysOfWeek: ['1', '2', '3', '4', '5']
-    };
+    try {
+      const response = await axios.get(`/api/users/${userId}/quiet-hours`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching quiet hours:', error);
+      throw new Error('Failed to fetch quiet hours settings');
+    }
   },
 
-  updateQuietHours: async (userId: string, settings: Partial<QuietHours>): Promise<QuietHours> => {
-    // Implementation would go here
-    return {
-      id: 'quiet-1',
-      userId,
-      enabled: false,
-      startTime: '22:00',
-      endTime: '07:00',
-      daysOfWeek: ['1', '2', '3', '4', '5'],
-      ...settings
-    };
-  }
-};
-
-/**
- * Send a notification to a user
- */
-export const sendNotification = async (
-  userId: string,
-  type: Notification['type'],
-  message: string,
-  data: any
-): Promise<Notification> => {
-  try {
-    const notification: Notification = {
-      id: `notif-${Date.now()}`,
-      userId,
-      type,
-      message,
-      data,
-      read: false,
-      createdAt: new Date()
-    };
-    
-    await db.insert('notifications', notification);
-    return notification;
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    throw new Error('Failed to send notification');
-  }
-};
-
-/**
- * Mark a notification as read
- */
-export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => {
-  try {
-    const notification = await db.getById('notifications', notificationId) as Notification;
-    
-    if (!notification) {
-      throw new Error('Notification not found');
+  // Update quiet hours
+  updateQuietHours: async (userId: string, data: Omit<QuietHours, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<QuietHours> => {
+    try {
+      const response = await axios.patch(`/api/users/${userId}/quiet-hours`, data);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating quiet hours:', error);
+      throw new Error('Failed to update quiet hours settings');
     }
-    
-    const updatedNotification = {
-      ...notification,
-      read: true
-    } as Notification;
-    
-    await db.update('notifications', notificationId, updatedNotification);
-    return updatedNotification;
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    throw new Error('Failed to mark notification as read');
-  }
-};
+  },
 
-/**
- * Get all notifications for a user
- */
-export const getUserNotifications = async (userId: string): Promise<Notification[]> => {
-  try {
-    return await db.query('notifications', { userId }) as Notification[];
-  } catch (error) {
-    console.error('Error fetching user notifications:', error);
-    throw new Error('Failed to get user notifications');
-  }
-};
+  // Get notification settings
+  getNotificationSettings: async (userId: string): Promise<NotificationSettings> => {
+    try {
+      const response = await axios.get(`/api/users/${userId}/notifications`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching notification settings:', error);
+      throw new Error('Failed to fetch notification settings');
+    }
+  },
 
-/**
- * Format a notification timestamp for display
- */
-export const formatNotificationTime = (date: Date): string => {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  
-  // Less than a minute
-  if (diff < 60000) {
-    return 'Just now';
+  // Update notification settings
+  updateNotificationSettings: async (userId: string, settings: Partial<NotificationSettings>): Promise<NotificationSettings> => {
+    try {
+      const response = await axios.patch(`/api/users/${userId}/notifications`, settings);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating notification settings:', error);
+      throw new Error('Failed to update notification settings');
+    }
+  },
+
+  // Send test notification
+  sendTestNotification: async (userId: string, type: string): Promise<void> => {
+    try {
+      await axios.post(`/api/users/${userId}/send-test-notification`, { type });
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      throw new Error('Failed to send test notification');
+    }
   }
-  
-  // Less than an hour
-  if (diff < 3600000) {
-    const minutes = Math.floor(diff / 60000);
-    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
-  }
-  
-  // Less than a day
-  if (diff < 86400000) {
-    const hours = Math.floor(diff / 3600000);
-    return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-  }
-  
-  // Less than a week
-  if (diff < 604800000) {
-    const days = Math.floor(diff / 86400000);
-    return `${days} day${days !== 1 ? 's' : ''} ago`;
-  }
-  
-  // Format as date
-  return date.toLocaleDateString(undefined, { 
-    month: 'short', 
-    day: 'numeric', 
-    year: now.getFullYear() !== date.getFullYear() ? 'numeric' : undefined 
-  });
 };
