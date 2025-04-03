@@ -17,13 +17,14 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./FrontEnd"),
+      "@": path.resolve(__dirname, "./src"),
+      "@frontend": path.resolve(__dirname, "./FrontEnd"),
       "@backend": path.resolve(__dirname, "./BackEnd"),
       "@database": path.resolve(__dirname, "./Database"),
     },
   },
   root: './',
-  publicDir: './FrontEnd/public',
+  publicDir: './public',
   build: {
     outDir: './dist',
   }

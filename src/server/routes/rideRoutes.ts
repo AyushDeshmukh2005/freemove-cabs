@@ -15,6 +15,7 @@ import {
 
 const router = express.Router();
 
+// Ride routes
 router.post('/', bookRide);
 router.get('/:id', getRideById);
 router.get('/user/:userId', getUserRides);

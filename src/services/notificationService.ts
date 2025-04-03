@@ -1,183 +1,114 @@
+import { db } from './databaseService';
 
-// Notification service for managing user notification preferences
-
-export type QuietHours = {
-  enabled: boolean;
-  startTime: string; // Format: "HH:MM" in 24-hour format
-  endTime: string; // Format: "HH:MM" in 24-hour format
-  days: Array<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'>;
-};
-
-export type NotificationSettings = {
+// Types
+export type Notification = {
+  id: string;
   userId: string;
-  quietHours: QuietHours;
-  rideUpdates: boolean;
-  promotions: boolean;
-  driverArrival: boolean;
-  paymentReceipts: boolean;
-  newFeatures: boolean;
+  type: 'ride' | 'payment' | 'promo' | 'system';
+  message: string;
+  data: any;
+  read: boolean;
+  createdAt: Date;
 };
 
-// Store notification settings in memory
-const userNotificationSettings: Record<string, NotificationSettings> = {};
-
-export const notificationService = {
-  // Get notification settings for a user
-  getSettings: (userId: string): Promise<NotificationSettings> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Return existing settings or create defaults
-        const settings = userNotificationSettings[userId] || {
-          userId,
-          quietHours: {
-            enabled: false,
-            startTime: "22:00",
-            endTime: "07:00",
-            days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-          },
-          rideUpdates: true,
-          promotions: true,
-          driverArrival: true,
-          paymentReceipts: true,
-          newFeatures: true
-        };
-        
-        resolve(settings);
-      }, 300);
-    });
-  },
-  
-  // Update notification settings for a user
-  updateSettings: (userId: string, settings: Partial<NotificationSettings>): Promise<NotificationSettings> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Get current settings or create defaults
-        const currentSettings = userNotificationSettings[userId] || {
-          userId,
-          quietHours: {
-            enabled: false,
-            startTime: "22:00",
-            endTime: "07:00",
-            days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-          },
-          rideUpdates: true,
-          promotions: true,
-          driverArrival: true,
-          paymentReceipts: true,
-          newFeatures: true
-        };
-        
-        // Update settings
-        userNotificationSettings[userId] = {
-          ...currentSettings,
-          ...settings,
-          // Handle nested quiet hours object
-          quietHours: settings.quietHours 
-            ? { ...currentSettings.quietHours, ...settings.quietHours }
-            : currentSettings.quietHours
-        };
-        
-        resolve(userNotificationSettings[userId]);
-      }, 300);
-    });
-  },
-  
-  // Check if current time is within quiet hours for a user
-  isInQuietHours: (userId: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const settings = userNotificationSettings[userId];
-        
-        // If no settings or quiet hours not enabled, not in quiet hours
-        if (!settings || !settings.quietHours.enabled) {
-          resolve(false);
-          return;
-        }
-        
-        const now = new Date();
-        const currentDay = now.toLocaleDateString('en-US', { weekday: 'lowercase' });
-        
-        // Check if current day is in quiet hours days
-        if (!settings.quietHours.days.includes(currentDay as any)) {
-          resolve(false);
-          return;
-        }
-        
-        // Parse start and end times
-        const [startHour, startMinute] = settings.quietHours.startTime.split(':').map(Number);
-        const [endHour, endMinute] = settings.quietHours.endTime.split(':').map(Number);
-        
-        // Create date objects for start and end times today
-        const startTime = new Date();
-        startTime.setHours(startHour, startMinute, 0);
-        
-        const endTime = new Date();
-        endTime.setHours(endHour, endMinute, 0);
-        
-        // Handle overnight quiet hours
-        if (startTime > endTime) {
-          // If current time is after start time or before end time
-          resolve(now >= startTime || now <= endTime);
-        } else {
-          // If current time is between start and end time
-          resolve(now >= startTime && now <= endTime);
-        }
-      }, 100);
-    });
-  },
-  
-  // Send a notification to a user
-  sendNotification: async (
-    userId: string, 
-    title: string, 
-    message: string, 
-    type: 'ride' | 'promo' | 'driver' | 'payment' | 'feature' | 'critical'
-  ): Promise<boolean> => {
-    // Check user notification settings
-    const settings = await notificationService.getSettings(userId);
+/**
+ * Send a notification to a user
+ */
+export const sendNotification = async (
+  userId: string,
+  type: Notification['type'],
+  message: string,
+  data: any
+): Promise<Notification> => {
+  try {
+    const notification: Notification = {
+      id: `notif-${Date.now()}`,
+      userId,
+      type,
+      message,
+      data,
+      read: false,
+      createdAt: new Date()
+    };
     
-    // Check if it's a critical notification (always sent)
-    if (type === 'critical') {
-      console.log(`[CRITICAL NOTIFICATION] To: ${userId}, Title: ${title}, Message: ${message}`);
-      return true;
-    }
-    
-    // Check quiet hours
-    const inQuietHours = await notificationService.isInQuietHours(userId);
-    
-    // If in quiet hours and not a critical notification, don't send
-    if (inQuietHours) {
-      console.log(`[QUIET HOURS] Suppressed notification to ${userId}`);
-      return false;
-    }
-    
-    // Check notification type preferences
-    let shouldSend = false;
-    
-    switch (type) {
-      case 'ride':
-        shouldSend = settings.rideUpdates;
-        break;
-      case 'promo':
-        shouldSend = settings.promotions;
-        break;
-      case 'driver':
-        shouldSend = settings.driverArrival;
-        break;
-      case 'payment':
-        shouldSend = settings.paymentReceipts;
-        break;
-      case 'feature':
-        shouldSend = settings.newFeatures;
-        break;
-    }
-    
-    if (shouldSend) {
-      console.log(`[NOTIFICATION SENT] To: ${userId}, Type: ${type}, Title: ${title}`);
-      return true;
-    } else {
-      console.log(`[NOTIFICATION SUPPRESSED] To: ${userId}, Type: ${type} (disabled by user)`);
-      return false;
-    }
+    await db.insert('notifications', notification);
+    return notification;
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    throw new Error('Failed to send notification');
   }
+};
+
+/**
+ * Mark a notification as read
+ */
+export const markNotificationAsRead = async (notificationId: string): Promise<Notification> => {
+  try {
+    const notification = await db.getById('notifications', notificationId) as Notification;
+    
+    if (!notification) {
+      throw new Error('Notification not found');
+    }
+    
+    const updatedNotification = {
+      ...notification,
+      read: true
+    } as Notification;
+    
+    await db.update('notifications', notificationId, updatedNotification);
+    return updatedNotification;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw new Error('Failed to mark notification as read');
+  }
+};
+
+/**
+ * Get all notifications for a user
+ */
+export const getUserNotifications = async (userId: string): Promise<Notification[]> => {
+  try {
+    return await db.query('notifications', { userId }) as Notification[];
+  } catch (error) {
+    console.error('Error fetching user notifications:', error);
+    throw new Error('Failed to get user notifications');
+  }
+};
+
+/**
+ * Format a notification timestamp for display
+ */
+export const formatNotificationTime = (date: Date): string => {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  
+  // Less than a minute
+  if (diff < 60000) {
+    return 'Just now';
+  }
+  
+  // Less than an hour
+  if (diff < 3600000) {
+    const minutes = Math.floor(diff / 60000);
+    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+  }
+  
+  // Less than a day
+  if (diff < 86400000) {
+    const hours = Math.floor(diff / 3600000);
+    return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  }
+  
+  // Less than a week
+  if (diff < 604800000) {
+    const days = Math.floor(diff / 86400000);
+    return `${days} day${days !== 1 ? 's' : ''} ago`;
+  }
+  
+  // Format as date
+  return date.toLocaleDateString(undefined, { 
+    month: 'short', 
+    day: 'numeric', 
+    year: now.getFullYear() !== date.getFullYear() ? 'numeric' : undefined 
+  });
 };
