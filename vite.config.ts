@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "./FrontEnd"),
       "@frontend": path.resolve(__dirname, "./FrontEnd"),
       "@backend": path.resolve(__dirname, "./BackEnd"),
       "@database": path.resolve(__dirname, "./Database"),
