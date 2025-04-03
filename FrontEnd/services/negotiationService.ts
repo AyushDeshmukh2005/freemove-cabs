@@ -1,6 +1,8 @@
 
 import axios from 'axios';
 
+const API_URL = 'http://localhost:5000/api/negotiations';
+
 export interface NegotiationRequest {
   rideId: string;
   userId: string;
@@ -30,7 +32,7 @@ export interface Negotiation {
 // Create a new fare negotiation
 export const negotiateRideFare = async (negotiation: NegotiationRequest) => {
   try {
-    const response = await axios.post('/api/negotiations', negotiation);
+    const response = await axios.post(API_URL, negotiation);
     return response.data;
   } catch (error) {
     console.error('Error negotiating ride fare:', error);
@@ -41,7 +43,7 @@ export const negotiateRideFare = async (negotiation: NegotiationRequest) => {
 // Get negotiations for a ride
 export const getRideNegotiations = async (rideId: string) => {
   try {
-    const response = await axios.get(`/api/negotiations/ride/${rideId}`);
+    const response = await axios.get(`${API_URL}/ride/${rideId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching ride negotiations:', error);
@@ -49,7 +51,7 @@ export const getRideNegotiations = async (rideId: string) => {
   }
 };
 
-// Respond to a negotiation
+// Driver responds to a negotiation
 export const respondToNegotiation = async (
   negotiationId: string, 
   driverId: string,
@@ -63,7 +65,7 @@ export const respondToNegotiation = async (
       counterOffer
     };
     
-    const apiResponse = await axios.patch(`/api/negotiations/${negotiationId}/respond`, data);
+    const apiResponse = await axios.patch(`${API_URL}/${negotiationId}/respond`, data);
     return apiResponse.data;
   } catch (error) {
     console.error('Error responding to negotiation:', error);
@@ -74,7 +76,7 @@ export const respondToNegotiation = async (
 // Accept a counter offer from a driver
 export const acceptCounterOffer = async (negotiationId: string) => {
   try {
-    const response = await axios.patch(`/api/negotiations/${negotiationId}/accept-counter`);
+    const response = await axios.patch(`${API_URL}/${negotiationId}/accept-counter`);
     return response.data;
   } catch (error) {
     console.error('Error accepting counter offer:', error);
@@ -85,7 +87,7 @@ export const acceptCounterOffer = async (negotiationId: string) => {
 // Get negotiation by ID
 export const getNegotiationById = async (id: string): Promise<Negotiation> => {
   try {
-    const response = await axios.get(`/api/negotiations/${id}`);
+    const response = await axios.get(`${API_URL}/${id}`);
     return response.data.data;
   } catch (error) {
     console.error('Error fetching negotiation:', error);
@@ -96,7 +98,7 @@ export const getNegotiationById = async (id: string): Promise<Negotiation> => {
 // Create a new negotiation
 export const createNegotiation = async (rideId: string, userId: string, userOffer: number): Promise<Negotiation> => {
   try {
-    const response = await axios.post('/api/negotiations', { rideId, userId, userOffer });
+    const response = await axios.post(API_URL, { rideId, userId, userOffer });
     return response.data.data;
   } catch (error) {
     console.error('Error creating negotiation:', error);
@@ -107,7 +109,7 @@ export const createNegotiation = async (rideId: string, userId: string, userOffe
 // Make counter offer
 export const makeCounterOffer = async (negotiationId: string, driverId: string, counterOffer: number): Promise<Negotiation> => {
   try {
-    const response = await axios.patch(`/api/negotiations/${negotiationId}/counter`, { 
+    const response = await axios.patch(`${API_URL}/${negotiationId}/counter`, { 
       driverId, 
       counterOffer 
     });
