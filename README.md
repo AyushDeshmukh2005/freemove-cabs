@@ -89,4 +89,4 @@ FreeMoves Cabs is a ride-sharing application with separate frontend, backend, an
 - **Frontend**: React, TailwindCSS, React Router, Tanstack Query
 - **Backend**: Node.js, Express
 - **Database**: MySQL
-- **Authentication**: JWT
+- **Authentication**: JWT.
