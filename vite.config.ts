@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./FrontEnd"),
+      "@backend": path.resolve(__dirname, "./BackEnd"),
+      "@database": path.resolve(__dirname, "./Database"),
     },
   },
   root: './',
