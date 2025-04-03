@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 import { weatherService } from './weatherService';
-import { db } from '@database/databaseService';
+import { db } from '../Database/databaseService';
 
 export interface RideLocation {
   address: string;
@@ -65,6 +65,14 @@ export interface Ride {
   isRated: boolean;
   stops: RideStop[];
 }
+
+export type RideRequest = {
+  userId: string;
+  startLocation: string;
+  endLocation: string;
+  startTime: Date;
+  cabType: string;
+};
 
 // Book a new ride
 export const bookRide = async (
@@ -209,12 +217,12 @@ export const updateRideStatus = async (
 export const rateRide = async (
   rideId: string, 
   rating: number, 
-  isDriverRating: boolean
+  review: string
 ): Promise<Ride> => {
   try {
     const response = await axios.patch(`/api/rides/${rideId}/rate`, { 
-      rating, 
-      isDriverRating 
+      rating,
+      review
     });
     return response.data.data;
   } catch (error) {
@@ -257,13 +265,10 @@ export const changeRideDestination = async (rideId: string, newDestination: stri
 };
 
 // Generate split payment link
-export const generateSplitPaymentLink = async (rideId: string, numberOfPeople: number): Promise<{ link: string, amount: number }> => {
+export const generateSplitPaymentLink = async (rideId: string): Promise<string> => {
   try {
-    const response = await axios.post(`/api/rides/${rideId}/split-payment`, { numberOfPeople });
-    return {
-      link: response.data.data.paymentLink,
-      amount: response.data.data.amount
-    };
+    const response = await axios.post(`/api/rides/${rideId}/split-payment`);
+    return response.data.data.paymentLink;
   } catch (error) {
     console.error('Error generating split payment link:', error);
     throw new Error('Failed to generate payment link');

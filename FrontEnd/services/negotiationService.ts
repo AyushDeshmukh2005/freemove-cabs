@@ -8,7 +8,7 @@ export interface NegotiationRequest {
 }
 
 export interface CounterOfferResponse {
-  negotiationId: number;
+  negotiationId: string;
   response: 'accepted' | 'rejected' | 'countered';
   counterOffer?: number;
   driverId: string;
@@ -39,7 +39,7 @@ export const negotiateRideFare = async (negotiation: NegotiationRequest) => {
 };
 
 // Get negotiations for a ride
-export const getRideNegotiations = async (rideId: number) => {
+export const getRideNegotiations = async (rideId: string) => {
   try {
     const response = await axios.get(`/api/negotiations/ride/${rideId}`);
     return response.data;
@@ -51,7 +51,7 @@ export const getRideNegotiations = async (rideId: number) => {
 
 // Respond to a negotiation
 export const respondToNegotiation = async (
-  negotiationId: number, 
+  negotiationId: string, 
   driverId: string,
   response: 'accepted' | 'rejected' | 'countered',
   counterOffer?: number
