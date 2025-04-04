@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Ride, getRideById, startRideUpdates, stopRideUpdates, cancelRide, rateRide, RideStop } from '@/services/rideService';
+import { Ride, getRideById, cancelRide, rateRide, RideStop } from '@/services/rideService';
 import { 
   Card, 
   CardContent, 
@@ -18,6 +18,9 @@ import {
 } from '@/components/ui/card';
 import StopsManager from '@/components/ride/StopsManager';
 import SplitPayment from '@/components/ride/SplitPayment';
+
+// Define interval type for ride updates
+let rideUpdateInterval: number | NodeJS.Timeout;
 
 const RideTracking = () => {
   const { rideId } = useParams<{ rideId: string }>();
@@ -30,6 +33,7 @@ const RideTracking = () => {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   
+  // Set up ride fetch
   useEffect(() => {
     const fetchRide = async () => {
       if (!rideId) return;
@@ -61,43 +65,45 @@ const RideTracking = () => {
     
     // Cleanup function
     return () => {
-      // Stop ride updates when component unmounts
-      stopRideUpdates();
+      if (rideUpdateInterval) {
+        clearInterval(rideUpdateInterval as number);
+      }
     };
   }, [rideId, toast, navigate]);
   
+  // Set up ride status updates
   useEffect(() => {
-    if (ride && ['accepted', 'ongoing'].includes(ride.status)) {
-      // Start ride updates
-      startRideUpdates(ride.id, (position, currentStop) => {
-        setCurrentPosition(position);
-        
-        // If there's a stop update, refresh ride data
-        if (currentStop) {
-          getRideById(ride.id).then(updatedRide => {
-            if (updatedRide) {
-              setRide(updatedRide);
-            }
+    if (ride && ['accepted', 'in_progress'].includes(ride.status)) {
+      // Start ride updates with a polling interval
+      rideUpdateInterval = setInterval(async () => {
+        try {
+          // Simulate position updates
+          setCurrentPosition({
+            lat: Math.random() * 0.01 + 37.7749,
+            lng: Math.random() * 0.01 - 122.4194
           });
-        }
-      });
-      
-      // When the ride status changes, refresh ride data
-      const checkRideStatus = setInterval(async () => {
-        const updatedRide = await getRideById(ride.id);
-        if (updatedRide && updatedRide.status !== ride.status) {
-          setRide(updatedRide);
           
-          if (updatedRide.status === 'completed') {
-            stopRideUpdates();
-            setShowRating(true);
-            clearInterval(checkRideStatus);
+          // Check for ride updates
+          const updatedRide = await getRideById(ride.id);
+          if (updatedRide && updatedRide.status !== ride.status) {
+            setRide(updatedRide);
+            
+            if (updatedRide.status === 'completed') {
+              if (rideUpdateInterval) {
+                clearInterval(rideUpdateInterval as number);
+              }
+              setShowRating(true);
+            }
           }
+        } catch (error) {
+          console.error('Error updating ride:', error);
         }
       }, 5000);
       
       return () => {
-        clearInterval(checkRideStatus);
+        if (rideUpdateInterval) {
+          clearInterval(rideUpdateInterval as number);
+        }
       };
     }
     
@@ -111,30 +117,18 @@ const RideTracking = () => {
     
     if (window.confirm('Are you sure you want to cancel this ride?')) {
       try {
-        const success = await cancelRide(ride.id);
+        const updatedRide = await cancelRide(ride.id);
         
-        if (success) {
-          toast({
-            title: "Ride Cancelled",
-            description: "Your ride has been cancelled successfully.",
-          });
-          
-          // Refresh ride data
-          const updatedRide = await getRideById(ride.id);
-          if (updatedRide) {
-            setRide(updatedRide);
-          }
-        } else {
-          toast({
-            title: "Cancellation Failed",
-            description: "This ride cannot be cancelled at this time.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Ride Cancelled",
+          description: "Your ride has been cancelled successfully.",
+        });
+        
+        setRide(updatedRide);
       } catch (error) {
         toast({
-          title: "Error",
-          description: "There was an error cancelling your ride.",
+          title: "Cancellation Failed",
+          description: "This ride cannot be cancelled at this time.",
           variant: "destructive",
         });
       }
@@ -147,7 +141,7 @@ const RideTracking = () => {
     setIsSubmittingRating(true);
     
     try {
-      await rateRide(ride.id, selectedRating, false);
+      await rateRide(ride.id, selectedRating, "");
       
       toast({
         title: "Thanks for Rating",
@@ -221,7 +215,7 @@ const RideTracking = () => {
               <h1 className="text-2xl font-bold dark:text-white">
                 {ride.status === 'pending' && 'Finding your driver...'}
                 {ride.status === 'accepted' && 'Driver is on the way!'}
-                {ride.status === 'ongoing' && 'On the way to your destination'}
+                {ride.status === 'in_progress' && 'On the way to your destination'}
                 {ride.status === 'completed' && 'Ride Completed'}
                 {ride.status === 'cancelled' && 'Ride Cancelled'}
               </h1>
@@ -230,7 +224,7 @@ const RideTracking = () => {
                 <p className="text-gray-500 dark:text-gray-400 mt-1">
                   {ride.status === 'pending' && 'Looking for drivers near you...'}
                   {ride.status === 'accepted' && 'Your driver will arrive shortly'}
-                  {ride.status === 'ongoing' && 'Enjoy your ride to the destination'}
+                  {ride.status === 'in_progress' && 'Enjoy your ride to the destination'}
                   {ride.status === 'completed' && 'Thanks for riding with us!'}
                 </p>
               )}
@@ -242,7 +236,7 @@ const RideTracking = () => {
               </Button>
             )}
             
-            {ride.status === 'ongoing' && (
+            {ride.status === 'in_progress' && (
               <Badge className="bg-gocabs-primary text-white px-3 py-1.5">
                 In Progress
               </Badge>
@@ -306,7 +300,7 @@ const RideTracking = () => {
                     </div>
                   </div>
                   
-                  {['ongoing', 'accepted'].includes(ride.status) && (
+                  {['in_progress', 'accepted'].includes(ride.status) && (
                     <StopsManager
                       rideId={ride.id}
                       currentStops={ride.stops}
