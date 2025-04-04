@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Button } from '../components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
+import { useToast } from '../hooks/use-toast';
 import { Palette, Check, Sun, Moon, Trash2, Plus } from 'lucide-react';
 import { 
   Dialog, 
@@ -15,13 +15,14 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
+} from '../components/ui/dialog';
+import { Separator } from '../components/ui/separator';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
+import { Theme } from '../context/ThemeContext';
 
 const ThemeSettings = () => {
-  const { theme, setTheme, userTheme, saveTheme, isLoading, error } = useTheme();
+  const { themes, currentTheme, isDarkMode, changeTheme, toggleDarkMode, createCustomTheme, deleteTheme } = useTheme();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -31,52 +32,15 @@ const ThemeSettings = () => {
     name: '',
     primaryColor: '#0f766e',
     secondaryColor: '#1e293b',
-    darkMode: false
+    darkMode: false,
+    userId: user?.id || ''
   });
   
-  const [systemThemes, setSystemThemes] = useState([
-    {
-      id: 'default-0',
-      name: 'Default Light',
-      primaryColor: '#0f766e',
-      secondaryColor: '#1e293b',
-      darkMode: false,
-      userId: 'system'
-    },
-    {
-      id: 'default-1',
-      name: 'Default Dark',
-      primaryColor: '#0d9488',
-      secondaryColor: '#0f172a',
-      darkMode: true,
-      userId: 'system'
-    },
-    {
-      id: 'default-2',
-      name: 'Purple Haze',
-      primaryColor: '#7c3aed',
-      secondaryColor: '#2e1065',
-      darkMode: true,
-      userId: 'system'
-    }
-  ]);
-  
-  const [userThemes, setUserThemes] = useState([]);
-  const [currentThemeId, setCurrentThemeId] = useState('default-0');
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  
-  const handleToggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    setTheme(isDarkMode ? 'light' : 'dark');
-  };
-  
-  const handleChangeTheme = (themeId) => {
-    setCurrentThemeId(themeId);
-    // In a real implementation, this would apply the theme
-  };
+  const systemThemes = themes.filter(theme => theme.userId === 'system');
+  const userThemes = themes.filter(theme => theme.userId === user?.id);
   
   const handleCreateTheme = async () => {
-    if (!newTheme.name) {
+    if (!newTheme.name || !user?.id) {
       toast({
         title: "Theme Name Required",
         description: "Please provide a name for your custom theme.",
@@ -86,11 +50,12 @@ const ThemeSettings = () => {
     }
     
     try {
-      await saveTheme({
+      await createCustomTheme({
         name: newTheme.name,
         primaryColor: newTheme.primaryColor,
         secondaryColor: newTheme.secondaryColor,
-        darkMode: newTheme.darkMode
+        darkMode: newTheme.darkMode,
+        userId: user.id
       });
       
       setNewThemeDialogOpen(false);
@@ -105,7 +70,8 @@ const ThemeSettings = () => {
         name: '',
         primaryColor: '#0f766e',
         secondaryColor: '#1e293b',
-        darkMode: false
+        darkMode: false,
+        userId: user.id
       });
     } catch (error) {
       toast({
@@ -116,19 +82,40 @@ const ThemeSettings = () => {
     }
   };
   
-  const handleDeleteTheme = async (themeId) => {
-    // In a real implementation, this would delete the theme
-    toast({
-      title: "Theme Deleted",
-      description: "The custom theme has been deleted.",
-    });
+  const handleDeleteTheme = async (themeId: string) => {
+    try {
+      const success = await deleteTheme(themeId);
+      
+      if (success) {
+        toast({
+          title: "Theme Deleted",
+          description: "The custom theme has been deleted.",
+        });
+      } else {
+        toast({
+          title: "Cannot Delete Theme",
+          description: "System themes cannot be deleted.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete the custom theme.",
+        variant: "destructive",
+      });
+    }
   };
   
   return (
     <DashboardLayout>
       <div className="p-6">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Theme Settings</h1>
+          </div>
+          
+          <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 <Palette className="h-5 w-5 inline mr-2" />
@@ -137,7 +124,7 @@ const ThemeSettings = () => {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={handleToggleDarkMode}
+                onClick={toggleDarkMode}
               >
                 {isDarkMode ? (
                   <>
@@ -158,21 +145,21 @@ const ThemeSettings = () => {
             </p>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Default Themes</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {systemThemes.map(theme => (
+              {systemThemes.map((theme) => (
                 <div 
                   key={theme.id}
-                  className={`relative border ${currentThemeId === theme.id ? 'border-primary' : 'border-gray-200 dark:border-gray-700'} rounded-lg p-4 cursor-pointer hover:border-primary transition-colors`}
-                  onClick={() => handleChangeTheme(theme.id)}
+                  className={`relative border ${currentTheme.id === theme.id ? 'border-gocabs-primary' : 'border-gray-200 dark:border-gray-700'} rounded-lg p-4 cursor-pointer hover:border-gocabs-primary transition-colors`}
+                  onClick={() => changeTheme(theme.id)}
                 >
-                  {currentThemeId === theme.id && (
+                  {currentTheme.id === theme.id && (
                     <div className="absolute top-2 right-2">
-                      <Check className="h-5 w-5 text-primary" />
+                      <Check className="h-5 w-5 text-gocabs-primary" />
                     </div>
                   )}
                   
@@ -206,26 +193,79 @@ const ThemeSettings = () => {
               <Button 
                 size="sm"
                 onClick={() => setNewThemeDialogOpen(true)}
+                className="bg-gocabs-primary hover:bg-gocabs-primary/90"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Theme
               </Button>
             </div>
             
-            <div className="text-center py-8 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <Palette className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                You haven't created any custom themes yet.
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-4"
-                onClick={() => setNewThemeDialogOpen(true)}
-              >
-                Create Your First Theme
-              </Button>
-            </div>
+            {userThemes.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                <Palette className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  You haven't created any custom themes yet.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-4"
+                  onClick={() => setNewThemeDialogOpen(true)}
+                >
+                  Create Your First Theme
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userThemes.map((theme) => (
+                  <div 
+                    key={theme.id}
+                    className={`relative border ${currentTheme.id === theme.id ? 'border-gocabs-primary' : 'border-gray-200 dark:border-gray-700'} rounded-lg p-4 cursor-pointer hover:border-gocabs-primary transition-colors`}
+                    onClick={() => changeTheme(theme.id)}
+                  >
+                    {currentTheme.id === theme.id && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="h-5 w-5 text-gocabs-primary" />
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium text-gray-800 dark:text-white">{theme.name}</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {theme.darkMode ? 'Dark mode' : 'Light mode'}
+                        </p>
+                      </div>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-gray-500 hover:text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTheme(theme.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <div 
+                        className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
+                        style={{ backgroundColor: theme.primaryColor }}
+                        title="Primary color"
+                      />
+                      <div 
+                        className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
+                        style={{ backgroundColor: theme.secondaryColor }}
+                        title="Secondary color"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -319,7 +359,7 @@ const ThemeSettings = () => {
             <Button type="button" variant="outline" onClick={() => setNewThemeDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleCreateTheme}>
+            <Button type="button" onClick={handleCreateTheme} className="bg-gocabs-primary hover:bg-gocabs-primary/90">
               Create Theme
             </Button>
           </DialogFooter>

@@ -6,7 +6,7 @@ const API_URL = 'http://localhost:5000/api/negotiations';
 export interface NegotiationRequest {
   rideId: string;
   userId: string;
-  userOffer: number;
+  userOffer: string | number;
 }
 
 export interface CounterOfferResponse {
@@ -14,19 +14,6 @@ export interface CounterOfferResponse {
   response: 'accepted' | 'rejected' | 'countered';
   counterOffer?: number;
   driverId: string;
-}
-
-export interface Negotiation {
-  id: string;
-  rideId: string;
-  userId: string;
-  driverId?: string;
-  userOffer: number;
-  driverCounterOffer?: number;
-  status: 'pending' | 'accepted' | 'rejected' | 'countered';
-  createdAt: Date;
-  updatedAt: Date;
-  expiresAt?: Date;
 }
 
 // Create a new fare negotiation
@@ -84,39 +71,28 @@ export const acceptCounterOffer = async (negotiationId: string) => {
   }
 };
 
-// Get negotiation by ID
-export const getNegotiationById = async (id: string): Promise<Negotiation> => {
+// Get a single negotiation by ID
+export const getNegotiationById = async (negotiationId: string) => {
   try {
-    const response = await axios.get(`${API_URL}/${id}`);
-    return response.data.data;
+    const response = await axios.get(`${API_URL}/${negotiationId}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching negotiation:', error);
-    throw new Error('Failed to fetch negotiation');
+    throw error;
   }
 };
 
-// Create a new negotiation
-export const createNegotiation = async (rideId: string, userId: string, userOffer: number): Promise<Negotiation> => {
+// Make a counter offer to a negotiation
+export const makeCounterOffer = async (
+  negotiationId: string, 
+  counterOffer: number
+) => {
   try {
-    const response = await axios.post(API_URL, { rideId, userId, userOffer });
-    return response.data.data;
-  } catch (error) {
-    console.error('Error creating negotiation:', error);
-    throw new Error('Failed to create negotiation');
-  }
-};
-
-// Make counter offer
-export const makeCounterOffer = async (negotiationId: string, driverId: string, counterOffer: number): Promise<Negotiation> => {
-  try {
-    const response = await axios.patch(`${API_URL}/${negotiationId}/counter`, { 
-      driverId, 
-      counterOffer 
-    });
-    return response.data.data;
+    const response = await axios.patch(`${API_URL}/${negotiationId}/counter`, { counterOffer });
+    return response.data;
   } catch (error) {
     console.error('Error making counter offer:', error);
-    throw new Error('Failed to make counter offer');
+    throw error;
   }
 };
 
@@ -126,6 +102,5 @@ export default {
   respondToNegotiation,
   acceptCounterOffer,
   getNegotiationById,
-  createNegotiation,
   makeCounterOffer
 };
