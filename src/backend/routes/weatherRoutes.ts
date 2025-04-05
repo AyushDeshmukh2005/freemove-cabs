@@ -1,14 +1,14 @@
 
-import express from 'express';
-import { 
-  getWeatherCondition, 
-  getWeatherForecast, 
-  getWeatherAdjustment 
+import express, { Router } from 'express';
+import {
+  getWeatherCondition,
+  getWeatherForecast,
+  getWeatherAdjustment
 } from '../controllers/weatherController';
 
-const router = express.Router();
+const router: Router = express.Router();
 
-router.get('/current/:location', getWeatherCondition);
+router.get('/condition/:location', getWeatherCondition);
 router.get('/forecast/:location', getWeatherForecast);
 router.get('/adjustment/:condition', getWeatherAdjustment);
 

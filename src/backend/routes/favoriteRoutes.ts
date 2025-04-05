@@ -1,24 +1,26 @@
 
-import express from 'express';
-import { 
-  saveFavoriteRoute, 
-  getFavoriteRoutes, 
-  deleteFavoriteRoute,
-  saveFavoriteDriver,
-  getFavoriteDrivers,
+import express, { Router } from 'express';
+import {
+  createFavoritePlace,
+  updateFavoritePlace,
+  deleteFavoritePlace,
+  getFavoritePlaces,
+  createFavoriteDriver,
+  updateFavoriteDriver,
   deleteFavoriteDriver
 } from '../controllers/favoriteController';
 
-const router = express.Router();
+const router: Router = express.Router();
 
-// Favorite routes
-router.post('/routes', saveFavoriteRoute);
-router.get('/routes/user/:userId', getFavoriteRoutes);
-router.delete('/routes/:id', deleteFavoriteRoute);
+// Favorite places routes
+router.post('/places', createFavoritePlace);
+router.put('/places/:id', updateFavoritePlace);
+router.delete('/places/:id', deleteFavoritePlace);
+router.get('/places/user/:userId', getFavoritePlaces);
 
-// Favorite drivers
-router.post('/drivers', saveFavoriteDriver);
-router.get('/drivers/user/:userId', getFavoriteDrivers);
+// Favorite drivers routes
+router.post('/drivers', createFavoriteDriver);
+router.put('/drivers/:id', updateFavoriteDriver);
 router.delete('/drivers/:id', deleteFavoriteDriver);
 
 export default router;

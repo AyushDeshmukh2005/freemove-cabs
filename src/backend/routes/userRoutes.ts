@@ -1,20 +1,19 @@
 
-import express from 'express';
-import { 
-  registerUser, 
-  loginUser, 
-  getUserProfile, 
-  updateUserProfile,
-  updateQuietHours
+import express, { Router } from 'express';
+import {
+  createUser,
+  loginUser,
+  getUser,
+  updateUser,
+  getUserSettings
 } from '../controllers/userController';
 
-const router = express.Router();
+const router: Router = express.Router();
 
-// User routes
-router.post('/register', registerUser);
+router.post('/register', createUser);
 router.post('/login', loginUser);
-router.get('/:id', getUserProfile);
-router.patch('/:id', updateUserProfile);
-router.patch('/:id/quiet-hours', updateQuietHours);
+router.get('/:id', getUser);
+router.put('/:id', updateUser);
+router.get('/:id/settings', getUserSettings);
 
 export default router;
