@@ -1,452 +1,406 @@
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import DashboardLayout from '../components/DashboardLayout';
-import { Button } from '../components/ui/button';
-import { useToast } from '../hooks/use-toast';
-import { Badge } from '../components/ui/badge';
-import { Progress } from '../components/ui/progress';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { 
-  Trophy, Star, Clock, Gift, Award, Calendar, ChevronRight, 
-  Check, XCircle, HelpCircle, Zap, TrendingUp, BarChart4
-} from 'lucide-react';
-import { getCompletedRidesCount } from '../services/rideService';
-
-interface RewardTier {
-  id: number;
-  name: string;
-  icon: React.ReactNode;
-  rides: number;
-  benefits: string[];
-  color: string;
-}
-
-interface Reward {
-  id: string;
-  title: string;
-  description: string;
-  expiresOn: Date;
-  redeemed: boolean;
-  category: 'discount' | 'perk' | 'service';
-  value: string;
-  icon: React.ReactNode;
-}
+import React, { useState } from 'react';
+import DashboardLayout from '@/components/DashboardLayout';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Award, Gift, Car, Calendar, Clock, MapPin, Star, TrendingUp, Users, Zap } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const DriverRewards = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('rewards');
+  const [driverPoints] = useState(3250);
+  const [driverTier] = useState('Gold');
+  const [completedRides] = useState(142);
+  const [nextTier] = useState('Platinum');
+  const [pointsToNextTier] = useState(750);
   
-  const [completedRides, setCompletedRides] = useState(0);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (user?.id) {
-          const rides = await getCompletedRidesCount(user.id);
-          setCompletedRides(rides);
-        }
-      } catch (error) {
-        console.error("Error fetching ride count:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [user]);
-  
-  // Reward tiers
-  const tiers: RewardTier[] = [
-    {
-      id: 1,
-      name: 'Bronze',
-      icon: <Trophy className="h-6 w-6" />,
-      rides: 10,
-      benefits: ['Basic rewards', 'Driver ratings', 'Ride history'],
-      color: 'bg-amber-700'
-    },
-    {
-      id: 2,
-      name: 'Silver',
-      icon: <Award className="h-6 w-6" />,
-      rides: 25,
-      benefits: ['All Bronze rewards', '5% discount on rides', 'Priority customer service'],
-      color: 'bg-gray-400'
-    },
-    {
-      id: 3,
-      name: 'Gold',
-      icon: <Star className="h-6 w-6" />,
-      rides: 50,
-      benefits: ['All Silver rewards', '10% discount on rides', 'Exclusive events', 'Quick driver matching'],
-      color: 'bg-yellow-500'
-    },
-    {
-      id: 4,
-      name: 'Platinum',
-      icon: <Award className="h-6 w-6" />,
-      rides: 100,
-      benefits: ['All Gold rewards', '15% discount on rides', 'Premium support', 'Free cancellations', 'Service upgrades'],
-      color: 'bg-slate-700'
-    }
-  ];
-  
-  // Sample rewards
-  const rewards: Reward[] = [
+  // Sample rewards data
+  const availableRewards = [
     {
       id: '1',
-      title: '10% Off Your Next Ride',
-      description: 'Get 10% discount on your next ride booking',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 14)),
-      redeemed: false,
-      category: 'discount',
-      value: '10% OFF',
-      icon: <Gift className="h-5 w-5" />
+      title: 'Fuel Discount Card',
+      description: '5% discount on fuel at participating stations for 1 month',
+      pointsCost: 500,
+      category: 'fuel',
+      isNew: true,
     },
     {
       id: '2',
-      title: 'Free Ride Up to ₹100',
-      description: 'Enjoy a free ride up to ₹100 value',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 7)),
-      redeemed: false,
-      category: 'discount',
-      value: '₹100',
-      icon: <Zap className="h-5 w-5" />
+      title: 'Premium Car Wash',
+      description: 'Free premium car wash at select locations',
+      pointsCost: 300,
+      category: 'service',
+      isNew: false,
     },
     {
       id: '3',
-      title: 'Premium Car Upgrade',
-      description: 'Upgrade to premium vehicle at standard price',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 30)),
-      redeemed: false,
+      title: 'Maintenance Discount',
+      description: '20% off your next service',
+      pointsCost: 800,
       category: 'service',
-      value: 'UPGRADE',
-      icon: <TrendingUp className="h-5 w-5" />
+      isNew: false,
     },
     {
       id: '4',
-      title: '20% Off Airport Transfer',
-      description: '20% discount on airport rides',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 60)),
-      redeemed: false,
-      category: 'discount',
-      value: '20% OFF',
-      icon: <Gift className="h-5 w-5" />
+      title: 'Free Car Inspection',
+      description: 'Complete car inspection at authorized centers',
+      pointsCost: 400,
+      category: 'service',
+      isNew: true,
     },
     {
       id: '5',
-      title: '5 Free Ride Cancellations',
-      description: 'Cancel rides without penalty (5 times)',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 90)),
-      redeemed: false,
-      category: 'perk',
-      value: 'FREE',
-      icon: <XCircle className="h-5 w-5" />
-    },
-    {
-      id: '6',
-      title: 'Priority Driver Matching',
-      description: 'Get matched with drivers faster for 7 days',
-      expiresOn: new Date(new Date().setDate(new Date().getDate() + 7)),
-      redeemed: true,
-      category: 'perk',
-      value: 'ACTIVE',
-      icon: <Clock className="h-5 w-5" />
+      title: 'Priority Ride Matching',
+      description: 'Get priority in ride matching for 1 week',
+      pointsCost: 1000,
+      category: 'rides',
+      isNew: false,
     }
   ];
   
-  // Get current tier
-  const getCurrentTier = () => {
-    for (let i = tiers.length - 1; i >= 0; i--) {
-      if (completedRides >= tiers[i].rides) {
-        return tiers[i];
-      }
-    }
-    return null;
-  };
-  
-  // Get next tier
-  const getNextTier = () => {
-    for (let i = 0; i < tiers.length; i++) {
-      if (completedRides < tiers[i].rides) {
-        return tiers[i];
-      }
-    }
-    return null; // Already at highest tier
-  };
-  
-  const currentTier = getCurrentTier();
-  const nextTier = getNextTier();
-  
-  // Progress to next tier (percentage)
-  const getProgressToNextTier = () => {
-    if (!currentTier || !nextTier) {
-      return completedRides > 0 ? 100 : 0; // Already at highest tier or no rides
-    }
-    
-    const previousTierRides = currentTier ? currentTier.rides : 0;
-    const ridesToNextTier = nextTier.rides - previousTierRides;
-    const ridesCompleted = completedRides - previousTierRides;
-    
-    return Math.min(100, Math.round((ridesCompleted / ridesToNextTier) * 100));
-  };
-  
-  const handleRedeemReward = (reward: Reward) => {
-    toast({
-      title: "Reward Redeemed",
-      description: `Your ${reward.title} has been added to your account.`,
-    });
-  };
-  
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-  
-  const filterRewards = (status: 'available' | 'redeemed') => {
-    return rewards.filter(reward => status === 'redeemed' ? reward.redeemed : !reward.redeemed);
+  const tierBenefits = {
+    'Silver': [
+      '1% extra earnings on each ride',
+      'Basic customer support',
+      'Access to basic rewards',
+    ],
+    'Gold': [
+      '3% extra earnings on each ride',
+      'Priority customer support',
+      'Access to all rewards',
+      'Monthly fuel discount',
+    ],
+    'Platinum': [
+      '5% extra earnings on each ride',
+      'Premium customer support with dedicated agent',
+      'Access to exclusive rewards',
+      'Weekly fuel discount',
+      'Vehicle maintenance assistance',
+    ]
   };
   
   return (
     <DashboardLayout>
-      <div className="p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center mb-6">
-            <Trophy className="h-8 w-8 text-gocabs-primary mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Rewards Program</h1>
-              <p className="text-muted-foreground">
-                Earn rewards by taking rides with GoCabs.
-              </p>
-            </div>
+      <div className="container py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Driver Rewards</h1>
+          <p className="text-gray-500 mt-1">
+            Earn points and unlock exclusive benefits as you complete rides
+          </p>
+        </div>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex items-center justify-between mb-6">
+            <TabsList>
+              <TabsTrigger value="rewards">Rewards</TabsTrigger>
+              <TabsTrigger value="tiers">Tiers & Benefits</TabsTrigger>
+              <TabsTrigger value="history">Points History</TabsTrigger>
+            </TabsList>
           </div>
           
-          <Card className="mb-8">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Your Reward Status</CardTitle>
-                  <CardDescription>Based on your completed rides</CardDescription>
-                </div>
-                <div className="flex items-center">
-                  <BarChart4 className="h-5 w-5 mr-2 text-gocabs-primary" />
-                  <span className="text-xl font-bold">{completedRides} rides</span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Current Tier */}
-                {currentTier && (
-                  <div className="flex items-center space-x-4">
-                    <div className={`h-12 w-12 rounded-full ${currentTier.color} flex items-center justify-center text-white`}>
-                      {currentTier.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <h3 className="text-lg font-semibold">{currentTier.name} Member</h3>
-                        <Badge variant="outline" className="ml-2 bg-gocabs-primary/10 text-gocabs-primary border-gocabs-primary/20">
-                          Current Tier
-                        </Badge>
+          <TabsContent value="rewards">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Star className="h-5 w-5 mr-2 text-amber-500" />
+                    Your Points
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-4xl font-bold mb-2">{driverPoints}</div>
+                  
+                  <div className="space-y-4 mt-6">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>{driverTier} Tier</span>
+                        <span>{nextTier} Tier</span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {currentTier.benefits[0]}, {currentTier.benefits[1]} & more
+                      <Progress value={(driverPoints / (driverPoints + pointsToNextTier)) * 100} />
+                      <p className="text-sm text-gray-500 mt-1">
+                        {pointsToNextTier} more points to reach {nextTier}
                       </p>
                     </div>
-                  </div>
-                )}
-                
-                {/* Progress to Next Tier */}
-                {nextTier && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progress to {nextTier.name}</span>
-                      <span className="font-medium">{completedRides} / {nextTier.rides} rides</span>
+                    
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                      <Car className="h-4 w-4 mr-1" />
+                      <span>{completedRides} rides completed</span>
                     </div>
-                    <Progress value={getProgressToNextTier()} />
-                    <p className="text-xs text-muted-foreground">
-                      Complete {nextTier.rides - completedRides} more rides to reach {nextTier.name} tier
-                    </p>
                   </div>
-                )}
+                </CardContent>
+                <CardFooter>
+                  <Button variant="outline" className="w-full">
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    View Your Progress
+                  </Button>
+                </CardFooter>
+              </Card>
+              
+              <div className="md:col-span-2 space-y-6">
+                <h2 className="text-xl font-semibold">Available Rewards</h2>
                 
-                {!nextTier && currentTier && currentTier.id === tiers[tiers.length - 1].id && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 rounded-lg p-3">
-                    <div className="flex items-center">
-                      <Check className="h-5 w-5 text-green-500 mr-2" />
-                      <p className="font-medium text-green-700 dark:text-green-400">
-                        Congratulations! You've reached the highest tier.
-                      </p>
-                    </div>
-                    <p className="text-sm text-green-600 dark:text-green-300 mt-1 ml-7">
-                      Enjoy all the exclusive benefits of Platinum membership.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Reward Tiers Info */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <Award className="h-5 w-5 mr-2" />
-              Reward Tiers & Benefits
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tiers.map(tier => (
-                <Card key={tier.id} className={`
-                  ${currentTier && currentTier.id === tier.id ? 'border-gocabs-primary' : ''}
-                `}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center space-x-2">
-                        <div className={`h-6 w-6 rounded-full ${tier.color} flex items-center justify-center text-white`}>
-                          {tier.icon}
+                <div className="space-y-4">
+                  {availableRewards.map(reward => (
+                    <Card key={reward.id}>
+                      <CardContent className="p-4 flex justify-between items-center">
+                        <div>
+                          <div className="flex items-center">
+                            <h3 className="font-medium">{reward.title}</h3>
+                            {reward.isNew && (
+                              <Badge className="ml-2 bg-green-500">NEW</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {reward.description}
+                          </p>
                         </div>
-                        <span>{tier.name}</span>
-                      </CardTitle>
-                      <span className="text-sm font-medium">{tier.rides}+ rides</span>
-                    </div>
+                        
+                        <div className="flex flex-col items-end">
+                          <div className="text-lg font-semibold mb-1">{reward.pointsCost} pts</div>
+                          <Button 
+                            size="sm"
+                            disabled={driverPoints < reward.pointsCost}
+                          >
+                            Redeem
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="tiers">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className={`relative overflow-hidden ${driverTier === 'Silver' ? 'border-slate-400' : ''}`}>
+                  <div className="absolute top-0 right-0 w-20 h-20">
+                    {driverTier === 'Silver' && (
+                      <div className="absolute transform rotate-45 translate-y-5 -translate-x-1 bg-slate-400 text-white text-xs font-semibold py-1 right-0 top-0 w-28 text-center">
+                        CURRENT
+                      </div>
+                    )}
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Award className="h-5 w-5 mr-2 text-slate-400" />
+                      Silver Tier
+                    </CardTitle>
+                    <CardDescription>
+                      0 - 2,500 points
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ul className="space-y-1">
-                      {tier.benefits.map((benefit, index) => (
-                        <li key={index} className="flex items-center text-sm">
-                          <Check className="h-3.5 w-3.5 text-green-500 mr-1.5" />
-                          {benefit}
+                    <ul className="space-y-2">
+                      {tierBenefits['Silver'].map((benefit, i) => (
+                        <li key={i} className="flex items-start">
+                          <Check className="h-4 w-4 mr-2 text-slate-400 mt-1" />
+                          <span>{benefit}</span>
                         </li>
                       ))}
                     </ul>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </div>
-          
-          {/* Your Rewards */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <Gift className="h-5 w-5 mr-2" />
-              Your Rewards
-            </h2>
-            
-            <Tabs defaultValue="available" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="available">Available Rewards</TabsTrigger>
-                <TabsTrigger value="redeemed">Redeemed Rewards</TabsTrigger>
-              </TabsList>
+                
+                <Card className={`relative overflow-hidden ${driverTier === 'Gold' ? 'border-amber-500' : ''}`}>
+                  <div className="absolute top-0 right-0 w-20 h-20">
+                    {driverTier === 'Gold' && (
+                      <div className="absolute transform rotate-45 translate-y-5 -translate-x-1 bg-amber-500 text-white text-xs font-semibold py-1 right-0 top-0 w-28 text-center">
+                        CURRENT
+                      </div>
+                    )}
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Award className="h-5 w-5 mr-2 text-amber-500" />
+                      Gold Tier
+                    </CardTitle>
+                    <CardDescription>
+                      2,500 - 5,000 points
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {tierBenefits['Gold'].map((benefit, i) => (
+                        <li key={i} className="flex items-start">
+                          <Check className="h-4 w-4 mr-2 text-amber-500 mt-1" />
+                          <span>{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+                
+                <Card className={`relative overflow-hidden ${driverTier === 'Platinum' ? 'border-slate-700' : ''}`}>
+                  <div className="absolute top-0 right-0 w-20 h-20">
+                    {driverTier === 'Platinum' && (
+                      <div className="absolute transform rotate-45 translate-y-5 -translate-x-1 bg-slate-700 text-white text-xs font-semibold py-1 right-0 top-0 w-28 text-center">
+                        CURRENT
+                      </div>
+                    )}
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Award className="h-5 w-5 mr-2" />
+                      Platinum Tier
+                    </CardTitle>
+                    <CardDescription>
+                      5,000+ points
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {tierBenefits['Platinum'].map((benefit, i) => (
+                        <li key={i} className="flex items-start">
+                          <Check className="h-4 w-4 mr-2 mt-1" />
+                          <span>{benefit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
               
-              <TabsContent value="available">
-                <div className="space-y-4">
-                  {filterRewards('available').length === 0 ? (
-                    <div className="text-center p-8 border border-dashed rounded-lg">
-                      <Gift className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground">You don't have any available rewards yet.</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Complete more rides to earn rewards!
-                      </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>How to Earn Points</CardTitle>
+                  <CardDescription>Complete these activities to earn reward points</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-start space-x-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                      <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full">
+                        <Car className="h-5 w-5 text-blue-500 dark:text-blue-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Complete Rides</h3>
+                        <p className="text-sm text-gray-500">50 points per ride</p>
+                      </div>
                     </div>
-                  ) : (
-                    filterRewards('available').map(reward => (
-                      <Card key={reward.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center md:items-start space-x-4">
-                            <div className="bg-gocabs-primary/10 p-2 rounded-lg text-gocabs-primary">
-                              {reward.icon}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-medium">{reward.title}</h3>
-                                  <p className="text-sm text-muted-foreground">{reward.description}</p>
-                                </div>
-                                <Badge variant="outline" className="hidden md:inline-flex ml-2 bg-green-50 text-green-600 border-green-100">
-                                  {reward.value}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center justify-between mt-2">
-                                <div className="flex items-center text-xs text-muted-foreground">
-                                  <Calendar className="h-3.5 w-3.5 mr-1" />
-                                  Expires: {formatDate(reward.expiresOn)}
-                                </div>
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handleRedeemReward(reward)}
-                                  variant="default"
-                                >
-                                  Redeem
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="redeemed">
-                <div className="space-y-4">
-                  {filterRewards('redeemed').length === 0 ? (
-                    <div className="text-center p-8 border border-dashed rounded-lg">
-                      <Check className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-muted-foreground">You haven't redeemed any rewards yet.</p>
+                    
+                    <div className="flex items-start space-x-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                      <div className="bg-green-100 dark:bg-green-900 p-2 rounded-full">
+                        <Star className="h-5 w-5 text-green-500 dark:text-green-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">5-Star Rating</h3>
+                        <p className="text-sm text-gray-500">20 points per 5-star rating</p>
+                      </div>
                     </div>
-                  ) : (
-                    filterRewards('redeemed').map(reward => (
-                      <Card key={reward.id} className="opacity-80">
-                        <CardContent className="p-4">
-                          <div className="flex items-center md:items-start space-x-4">
-                            <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-gray-500">
-                              {reward.icon}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="font-medium">{reward.title}</h3>
-                                  <p className="text-sm text-muted-foreground">{reward.description}</p>
-                                </div>
-                                <Badge variant="outline" className="hidden md:inline-flex ml-2 bg-gray-100 text-gray-500 border-gray-200">
-                                  REDEEMED
-                                </Badge>
-                              </div>
-                              <div className="flex items-center text-xs text-muted-foreground mt-2">
-                                <Check className="h-3.5 w-3.5 mr-1" />
-                                Redeemed
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-          
-          {/* Help Section */}
-          <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-800 flex space-x-3">
-            <HelpCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                Questions about the rewards program?
-              </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                View our <button className="text-blue-700 dark:text-blue-200 underline">Rewards FAQ</button> or <button className="text-blue-700 dark:text-blue-200 underline">contact support</button> for assistance.
-              </p>
+                    
+                    <div className="flex items-start space-x-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                      <div className="bg-amber-100 dark:bg-amber-900 p-2 rounded-full">
+                        <Clock className="h-5 w-5 text-amber-500 dark:text-amber-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">On-Time Arrival</h3>
+                        <p className="text-sm text-gray-500">15 points per on-time arrival</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                      <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded-full">
+                        <Users className="h-5 w-5 text-purple-500 dark:text-purple-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Referrals</h3>
+                        <p className="text-sm text-gray-500">200 points per driver referral</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>Points History</CardTitle>
+                <CardDescription>Recent points earned and redeemed</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-3 border-b">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <Plus className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Ride Completed</div>
+                        <div className="text-sm text-gray-500">Apr 5, 2025 • 8:35 AM</div>
+                      </div>
+                    </div>
+                    <div className="text-green-500 font-medium">+50 pts</div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 border-b">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <Plus className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium">5-Star Rating</div>
+                        <div className="text-sm text-gray-500">Apr 4, 2025 • 7:22 PM</div>
+                      </div>
+                    </div>
+                    <div className="text-green-500 font-medium">+20 pts</div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 border-b">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <Plus className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Ride Completed</div>
+                        <div className="text-sm text-gray-500">Apr 4, 2025 • 2:15 PM</div>
+                      </div>
+                    </div>
+                    <div className="text-green-500 font-medium">+50 pts</div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 border-b">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-red-100 p-2 rounded-full">
+                        <Minus className="h-4 w-4 text-red-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Fuel Discount Redeemed</div>
+                        <div className="text-sm text-gray-500">Apr 3, 2025 • 11:30 AM</div>
+                      </div>
+                    </div>
+                    <div className="text-red-500 font-medium">-500 pts</div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center p-3 border-b">
+                    <div className="flex items-start space-x-3">
+                      <div className="bg-green-100 p-2 rounded-full">
+                        <Plus className="h-4 w-4 text-green-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium">On-time Arrival Bonus</div>
+                        <div className="text-sm text-gray-500">Apr 3, 2025 • 10:12 AM</div>
+                      </div>
+                    </div>
+                    <div className="text-green-500 font-medium">+15 pts</div>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full">
+                  View All History
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

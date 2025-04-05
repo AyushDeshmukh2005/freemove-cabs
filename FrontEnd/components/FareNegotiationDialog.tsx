@@ -38,7 +38,7 @@ const FareNegotiationDialog = ({ rideId, userId, originalFare, isOpen, onOpenCha
       await negotiateRideFare({
         rideId,
         userId,
-        userOffer: userOffer.toString() // Convert to string
+        userOffer: userOffer.toString() // Convert to string as required by the API
       });
       
       toast({

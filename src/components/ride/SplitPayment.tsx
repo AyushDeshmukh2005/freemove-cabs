@@ -12,6 +12,11 @@ interface SplitPaymentProps {
   currentFare: number;
 }
 
+interface SplitPaymentResult {
+  link: string;
+  amount: number;
+}
+
 const SplitPayment = ({ rideId, currentFare }: SplitPaymentProps) => {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -24,10 +29,16 @@ const SplitPayment = ({ rideId, currentFare }: SplitPaymentProps) => {
     setIsGenerating(true);
     
     try {
-      const result = await generateSplitPaymentLink(rideId, numberOfPeople);
+      const result = await generateSplitPaymentLink(rideId);
       
-      setPaymentLink(result.link);
-      setSplitAmount(result.amount);
+      if (typeof result === 'string') {
+        setPaymentLink(result);
+        setSplitAmount(currentFare / numberOfPeople);
+      } else if (result && typeof result === 'object') {
+        // Handle if result is an object with link and amount properties
+        setPaymentLink(result.link);
+        setSplitAmount(result.amount || (currentFare / numberOfPeople));
+      }
       
       toast({
         title: "Payment Link Generated",

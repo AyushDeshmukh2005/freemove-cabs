@@ -1,154 +1,138 @@
 
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { themeService, Theme } from '@/services/themeService';
-import { useAuth } from './AuthContext';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { themeService } from '../services/themeService';
 
-export interface ThemeContextType {
-  theme: string;
-  setTheme: (theme: string) => void;
-  userTheme: Theme | null;
-  saveTheme: (theme: Omit<Theme, "id">) => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
+export interface Theme {
+  id: string;
+  name: string;
+  primaryColor: string;
+  secondaryColor?: string;
+  textColor?: string;
+  backgroundColor?: string;
+  isDark?: boolean;
+  userId?: string;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+interface ThemeContextType {
+  isDark: boolean;
+  setDarkMode: (isDark: boolean) => void;
+  currentThemeId: string;
+  setTheme: (themeId: string) => void;
+  availableThemes: Theme[];
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  isDark: false,
+  setDarkMode: () => {},
+  currentThemeId: 'default',
+  setTheme: () => {},
+  availableThemes: [],
+});
 
 interface ThemeProviderProps {
   children: ReactNode;
 }
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
-  const [theme, setTheme] = useState('system');
-  const [userTheme, setUserTheme] = useState<Theme | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
-  
-  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
-  
-  // Effect for system theme preference
+  const [isDark, setIsDark] = useState(false);
+  const [currentThemeId, setCurrentThemeId] = useState('default');
+  const [availableThemes, setAvailableThemes] = useState<Theme[]>([
+    {
+      id: 'default',
+      name: 'Default Blue',
+      primaryColor: '#3498db',
+      secondaryColor: '#2980b9',
+    },
+    {
+      id: 'green',
+      name: 'Green',
+      primaryColor: '#2ecc71',
+      secondaryColor: '#27ae60',
+    },
+    {
+      id: 'purple',
+      name: 'Purple',
+      primaryColor: '#9b59b6',
+      secondaryColor: '#8e44ad',
+    }
+  ]);
+
+  // Apply dark mode
   useEffect(() => {
-    // Apply system theme on component mount
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      setTheme(savedTheme);
+    const isDarkMode = localStorage.getItem('darkMode') === 'true';
+    setIsDark(isDarkMode);
+    
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
     } else {
-      setTheme(prefersDark ? 'dark' : 'light');
+      document.documentElement.classList.remove('dark');
     }
-  }, [prefersDark]);
-  
-  // Effect to apply theme
+  }, []);
+
+  // Apply theme
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
+    const savedThemeId = localStorage.getItem('themeId') || 'default';
+    setCurrentThemeId(savedThemeId);
     
-    let appliedTheme = theme;
-    // If system preference, determine if should be dark/light
-    if (theme === 'system') {
-      appliedTheme = prefersDark ? 'dark' : 'light';
+    const theme = availableThemes.find(t => t.id === savedThemeId) || availableThemes[0];
+    
+    document.documentElement.style.setProperty('--primary-color', theme.primaryColor);
+    if (theme.secondaryColor) {
+      document.documentElement.style.setProperty('--secondary-color', theme.secondaryColor);
     }
-    
-    root.classList.add(appliedTheme);
-    localStorage.setItem('theme', theme);
-    
-    // If the user has a custom theme, apply those colors as CSS variables
-    if (userTheme) {
-      if (userTheme.primaryColor) {
-        document.documentElement.style.setProperty('--gocabs-primary', userTheme.primaryColor);
-      }
-      if (userTheme.secondaryColor) {
-        document.documentElement.style.setProperty('--gocabs-secondary', userTheme.secondaryColor);
-      }
-      if (userTheme.accentColor) {
-        document.documentElement.style.setProperty('--gocabs-accent', userTheme.accentColor);
-      }
-    }
-  }, [theme, prefersDark, userTheme]);
-  
-  // Load user theme from API when user is authenticated
+  }, [availableThemes]);
+
+  // Load user themes
   useEffect(() => {
-    const fetchUserTheme = async () => {
-      if (!user) {
-        setUserTheme(null);
-        return;
-      }
-      
-      setIsLoading(true);
-      setError(null);
-      
+    const loadUserThemes = async () => {
       try {
-        const theme = await themeService.getUserTheme(user.id);
-        setUserTheme(theme);
-      } catch (err) {
-        console.error('Error fetching user theme:', err);
-        setError('Failed to load theme settings');
-      } finally {
-        setIsLoading(false);
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+          const userThemes = await themeService.getUserThemes(userId);
+          setAvailableThemes(prev => [...prev, ...userThemes]);
+        }
+      } catch (error) {
+        console.error('Failed to load user themes', error);
       }
     };
     
-    fetchUserTheme();
-  }, [user]);
-  
-  const saveTheme = async (themeData: Omit<Theme, "id">) => {
-    if (!user) {
-      setError('Must be logged in to save themes');
-      return;
-    }
+    loadUserThemes();
+  }, []);
+
+  const setDarkMode = (isDark: boolean) => {
+    setIsDark(isDark);
+    localStorage.setItem('darkMode', isDark.toString());
     
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      let savedTheme: Theme;
-      
-      if (userTheme?.id) {
-        // Update existing theme
-        savedTheme = await themeService.updateTheme(userTheme.id, {
-          ...themeData,
-          userId: user.id
-        });
-      } else {
-        // Create new theme
-        savedTheme = await themeService.createTheme({
-          ...themeData,
-          userId: user.id
-        });
-      }
-      
-      setUserTheme(savedTheme);
-    } catch (err) {
-      console.error('Error saving theme:', err);
-      setError('Failed to save theme settings');
-    } finally {
-      setIsLoading(false);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   };
-  
+
+  const setTheme = (themeId: string) => {
+    setCurrentThemeId(themeId);
+    localStorage.setItem('themeId', themeId);
+    
+    const theme = availableThemes.find(t => t.id === themeId) || availableThemes[0];
+    
+    document.documentElement.style.setProperty('--primary-color', theme.primaryColor);
+    if (theme.secondaryColor) {
+      document.documentElement.style.setProperty('--secondary-color', theme.secondaryColor);
+    }
+  };
+
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        setTheme,
-        userTheme,
-        saveTheme,
-        isLoading,
-        error
-      }}
-    >
+    <ThemeContext.Provider value={{
+      isDark,
+      setDarkMode,
+      currentThemeId,
+      setTheme,
+      availableThemes
+    }}>
       {children}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext);
-  
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  
-  return context;
-};
+export const useTheme = () => useContext(ThemeContext);

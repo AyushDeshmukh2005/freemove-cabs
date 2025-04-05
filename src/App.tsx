@@ -1,24 +1,24 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "./components/ui/toaster";
+import { Toaster as Sonner } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
-import AuthGuard from "@/components/AuthGuard";
-import Index from "@/pages/Index";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup"; 
-import Dashboard from "@/pages/Dashboard";
-import RideTracking from "@/pages/RideTracking";
-import RideHistory from "@/pages/RideHistory";
-import NotFound from "@/pages/NotFound";
-import ThemeSettings from "@/pages/ThemeSettings";
-import EmergencySettings from "@/pages/EmergencySettings";
-import DriverRewards from "@/pages/DriverRewards";
-import NotificationSettings from "@/pages/NotificationSettings";
-import Subscriptions from "@/pages/Subscriptions";
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import AuthGuard from "./components/AuthGuard";
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup"; 
+import Dashboard from "./pages/Dashboard";
+import RideTracking from "./pages/RideTracking";
+import RideHistory from "./pages/RideHistory";
+import NotFound from "./pages/NotFound";
+import ThemeSettings from "./pages/ThemeSettings";
+import EmergencySettings from "./pages/EmergencySettings";
+import DriverRewards from "./pages/DriverRewards";
+import NotificationSettings from "./pages/NotificationSettings";
+import Subscriptions from "./pages/Subscriptions";
 
 const queryClient = new QueryClient();
 

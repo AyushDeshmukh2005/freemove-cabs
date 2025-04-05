@@ -1,4 +1,7 @@
 
+// Just fixing the specific type error in the file
+// This is a partial update focusing on line 92 that has the Promise<number> type error
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,7 +91,8 @@ const RideBookingForm = () => {
           const condition = await weatherService.getCurrentWeather(pickupLocation);
           setWeatherCondition(condition);
           
-          const adjustment = weatherService.getPriceAdjustmentForWeather(condition);
+          // Fix the type error by awaiting the Promise
+          const adjustment = await weatherService.getPriceAdjustmentForWeather(condition);
           setWeatherAdjustment(adjustment);
         } catch (error) {
           console.error("Error fetching weather:", error);
