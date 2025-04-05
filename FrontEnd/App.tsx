@@ -1,24 +1,24 @@
 
-import { Toaster } from "./components/ui/toaster";
-import { Toaster as Sonner } from "./components/ui/sonner";
-import { TooltipProvider } from "./components/ui/tooltip";
+import { Toaster } from "../src/components/ui/toaster";
+import { Toaster as Sonner } from "../src/components/ui/sonner";
+import { TooltipProvider } from "../src/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
-import AuthGuard from "./components/AuthGuard";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup"; 
-import Dashboard from "./pages/Dashboard";
-import RideTracking from "./pages/RideTracking";
-import RideHistory from "./pages/RideHistory";
-import NotFound from "./pages/NotFound";
-import ThemeSettings from "./pages/ThemeSettings";
-import EmergencySettings from "./pages/EmergencySettings";
-import DriverRewards from "./pages/DriverRewards";
-import NotificationSettings from "./pages/NotificationSettings";
-import Subscriptions from "./pages/Subscriptions";
+import { AuthProvider } from "../src/context/AuthContext";
+import { ThemeProvider } from "../src/context/ThemeContext";
+import AuthGuard from "../src/components/AuthGuard";
+import Index from "../src/pages/Index";
+import Login from "../src/pages/Login";
+import Signup from "../src/pages/Signup"; 
+import Dashboard from "../src/pages/Dashboard";
+import RideTracking from "../src/pages/RideTracking";
+import RideHistory from "../src/pages/RideHistory";
+import NotFound from "../src/pages/NotFound";
+import ThemeSettings from "../src/pages/ThemeSettings";
+import EmergencySettings from "../src/pages/EmergencySettings";
+import DriverRewards from "../src/pages/DriverRewards";
+import NotificationSettings from "../src/pages/NotificationSettings";
+import Subscriptions from "../src/pages/Subscriptions";
 
 const queryClient = new QueryClient();
 

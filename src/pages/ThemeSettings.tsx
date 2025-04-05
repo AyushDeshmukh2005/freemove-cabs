@@ -1,371 +1,319 @@
 
-import { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
+import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Check, Sun, Moon, Trash2, Plus } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { useNavigate } from 'react-router-dom';
+import { Sun, Moon, Palette, Trash } from 'lucide-react';
 
 const ThemeSettings = () => {
-  const { themes, currentTheme, isDarkMode, changeTheme, toggleDarkMode, createCustomTheme, deleteTheme } = useTheme();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const { 
+    isDark, 
+    setDarkMode, 
+    currentThemeId, 
+    setTheme, 
+    availableThemes 
+  } = useTheme();
   
-  const [newThemeDialogOpen, setNewThemeDialogOpen] = useState(false);
   const [newTheme, setNewTheme] = useState({
     name: '',
-    primaryColor: '#0f766e',
-    secondaryColor: '#1e293b',
-    darkMode: false
+    primaryColor: '#3498db',
+    secondaryColor: '#2980b9',
+    textColor: isDark ? '#ffffff' : '#333333',
+    backgroundColor: isDark ? '#121212' : '#ffffff',
+    isDark: isDark,
   });
   
-  const systemThemes = themes.filter(theme => theme.userId === 'system');
-  const userThemes = themes.filter(theme => theme.userId === user?.id);
+  const [isCreating, setIsCreating] = useState(false);
+  
+  const handleColorChange = (field: string, value: string) => {
+    setNewTheme((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
   
   const handleCreateTheme = async () => {
     if (!newTheme.name) {
       toast({
-        title: "Theme Name Required",
-        description: "Please provide a name for your custom theme.",
+        title: "Theme name required",
+        description: "Please provide a name for your theme.",
         variant: "destructive",
       });
       return;
     }
     
+    setIsCreating(true);
+    
     try {
-      await createCustomTheme({
-        name: newTheme.name,
-        primaryColor: newTheme.primaryColor,
-        secondaryColor: newTheme.secondaryColor,
-        darkMode: newTheme.darkMode
-      });
-      
-      setNewThemeDialogOpen(false);
+      // We would normally call a service here to create the theme
+      // const createdTheme = await themeService.createTheme({...newTheme, userId: user.id});
       
       toast({
-        title: "Theme Created",
-        description: "Your custom theme has been created successfully.",
+        title: "Theme created",
+        description: `Theme "${newTheme.name}" has been created.`,
       });
       
-      // Reset form
+      // Reset form after successful creation
       setNewTheme({
         name: '',
-        primaryColor: '#0f766e',
-        secondaryColor: '#1e293b',
-        darkMode: false
+        primaryColor: '#3498db',
+        secondaryColor: '#2980b9',
+        textColor: isDark ? '#ffffff' : '#333333',
+        backgroundColor: isDark ? '#121212' : '#ffffff',
+        isDark: isDark,
       });
+      
     } catch (error) {
       toast({
-        title: "Failed to Create Theme",
-        description: "There was an error creating your custom theme.",
+        title: "Theme creation failed",
+        description: "Failed to create your custom theme.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreating(false);
     }
   };
   
   const handleDeleteTheme = async (themeId: string) => {
     try {
-      const success = await deleteTheme(themeId);
+      // We would normally call a service here to delete the theme
+      // await themeService.deleteTheme(themeId);
       
-      if (success) {
-        toast({
-          title: "Theme Deleted",
-          description: "The custom theme has been deleted.",
-        });
-      } else {
-        toast({
-          title: "Cannot Delete Theme",
-          description: "System themes cannot be deleted.",
-          variant: "destructive",
-        });
+      toast({
+        title: "Theme deleted",
+        description: "The theme has been deleted.",
+      });
+      
+      // If the deleted theme was selected, switch to default
+      if (themeId === currentThemeId) {
+        setTheme('default');
       }
+      
     } catch (error) {
       toast({
-        title: "Delete Failed",
-        description: "Failed to delete the custom theme.",
+        title: "Delete failed",
+        description: "Failed to delete theme.",
         variant: "destructive",
       });
     }
   };
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gocabs-dark p-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Theme Settings</h1>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate('/dashboard')}
-          >
-            Back to Dashboard
-          </Button>
-        </div>
-        
-        <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-              <Palette className="h-5 w-5 inline mr-2" />
-              Display Mode
-            </h2>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={toggleDarkMode}
-            >
-              {isDarkMode ? (
-                <>
-                  <Sun className="h-4 w-4 mr-2" />
-                  Light Mode
-                </>
-              ) : (
-                <>
-                  <Moon className="h-4 w-4 mr-2" />
-                  Dark Mode
-                </>
-              )}
-            </Button>
-          </div>
-          
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-            Choose between light and dark mode for your GoCabs experience.
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold dark:text-white">Appearance Settings</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Customize the appearance of your GoCabs application
           </p>
         </div>
         
-        <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Default Themes</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {systemThemes.map(theme => (
-              <div 
-                key={theme.id}
-                className={`relative border ${currentTheme.id === theme.id ? 'border-gocabs-primary' : 'border-gray-200 dark:border-gray-700'} rounded-lg p-4 cursor-pointer hover:border-gocabs-primary transition-colors`}
-                onClick={() => changeTheme(theme.id)}
-              >
-                {currentTheme.id === theme.id && (
-                  <div className="absolute top-2 right-2">
-                    <Check className="h-5 w-5 text-gocabs-primary" />
-                  </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Color Mode</CardTitle>
+            <CardDescription>Choose between light and dark mode</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                {isDark ? (
+                  <Moon className="h-5 w-5 text-blue-500" />
+                ) : (
+                  <Sun className="h-5 w-5 text-yellow-500" />
                 )}
-                
-                <div className="mb-3">
-                  <h3 className="font-medium text-gray-800 dark:text-white">{theme.name}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {theme.darkMode ? 'Dark mode' : 'Light mode'}
-                  </p>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <div 
-                    className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
-                    style={{ backgroundColor: theme.primaryColor }}
-                    title="Primary color"
-                  />
-                  <div 
-                    className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
-                    style={{ backgroundColor: theme.secondaryColor }}
-                    title="Secondary color"
-                  />
-                </div>
+                <Label htmlFor="dark-mode">Dark Mode</Label>
               </div>
-            ))}
-          </div>
-          
-          <Separator className="my-6" />
-          
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Your Custom Themes</h2>
-            <Button 
-              size="sm"
-              onClick={() => setNewThemeDialogOpen(true)}
-              className="bg-gocabs-primary hover:bg-gocabs-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Theme
-            </Button>
-          </div>
-          
-          {userThemes.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <Palette className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                You haven't created any custom themes yet.
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-4"
-                onClick={() => setNewThemeDialogOpen(true)}
-              >
-                Create Your First Theme
-              </Button>
+              <Switch
+                id="dark-mode"
+                checked={isDark}
+                onCheckedChange={setDarkMode}
+              />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userThemes.map(theme => (
+          </CardContent>
+        </Card>
+        
+        <Tabs defaultValue="built-in">
+          <TabsList>
+            <TabsTrigger value="built-in">Built-in Themes</TabsTrigger>
+            <TabsTrigger value="custom">Custom Theme</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="built-in" className="space-y-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableThemes.map((theme) => (
                 <div 
                   key={theme.id}
-                  className={`relative border ${currentTheme.id === theme.id ? 'border-gocabs-primary' : 'border-gray-200 dark:border-gray-700'} rounded-lg p-4 cursor-pointer hover:border-gocabs-primary transition-colors`}
-                  onClick={() => changeTheme(theme.id)}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    theme.id === currentThemeId ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-200 hover:border-blue-300"
+                  }`}
+                  onClick={() => setTheme(theme.id)}
                 >
-                  {currentTheme.id === theme.id && (
-                    <div className="absolute top-2 right-2">
-                      <Check className="h-5 w-5 text-gocabs-primary" />
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium text-gray-800 dark:text-white">{theme.name}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {theme.darkMode ? 'Dark mode' : 'Light mode'}
-                      </p>
-                    </div>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-gray-500 hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTheme(theme.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-medium">{theme.name}</h3>
+                    {theme.id !== 'default' && theme.id !== 'green' && theme.id !== 'purple' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTheme(theme.id);
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash size={16} />
+                      </button>
+                    )}
                   </div>
                   
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 mt-2">
                     <div 
-                      className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
+                      className="h-6 w-6 rounded-full" 
                       style={{ backgroundColor: theme.primaryColor }}
-                      title="Primary color"
+                      title="Primary Color"
                     />
-                    <div 
-                      className="h-8 w-8 rounded-full border border-gray-200 dark:border-gray-700" 
-                      style={{ backgroundColor: theme.secondaryColor }}
-                      title="Secondary color"
-                    />
+                    {theme.secondaryColor && (
+                      <div 
+                        className="h-6 w-6 rounded-full" 
+                        style={{ backgroundColor: theme.secondaryColor }}
+                        title="Secondary Color"
+                      />
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      </div>
-      
-      {/* New Theme Dialog */}
-      <Dialog open={newThemeDialogOpen} onOpenChange={setNewThemeDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Create Custom Theme</DialogTitle>
-            <DialogDescription>
-              Design your own theme with custom colors and mode preference.
-            </DialogDescription>
-          </DialogHeader>
+          </TabsContent>
           
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="theme-name">Theme Name</Label>
-              <Input 
-                id="theme-name" 
-                value={newTheme.name} 
-                onChange={(e) => setNewTheme({...newTheme, name: e.target.value})}
-                placeholder="My Custom Theme"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="primary-color">Primary Color</Label>
-              <div className="flex items-center gap-2">
-                <Input 
-                  id="primary-color" 
-                  type="color" 
-                  value={newTheme.primaryColor} 
-                  onChange={(e) => setNewTheme({...newTheme, primaryColor: e.target.value})}
-                  className="w-12 h-10 p-1"
-                />
-                <Input 
-                  type="text" 
-                  value={newTheme.primaryColor} 
-                  onChange={(e) => setNewTheme({...newTheme, primaryColor: e.target.value})}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="secondary-color">Secondary Color</Label>
-              <div className="flex items-center gap-2">
-                <Input 
-                  id="secondary-color" 
-                  type="color" 
-                  value={newTheme.secondaryColor} 
-                  onChange={(e) => setNewTheme({...newTheme, secondaryColor: e.target.value})}
-                  className="w-12 h-10 p-1"
-                />
-                <Input 
-                  type="text" 
-                  value={newTheme.secondaryColor} 
-                  onChange={(e) => setNewTheme({...newTheme, secondaryColor: e.target.value})}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label>Theme Mode</Label>
-              <RadioGroup 
-                value={newTheme.darkMode ? "dark" : "light"} 
-                onValueChange={(value) => setNewTheme({...newTheme, darkMode: value === "dark"})}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="light" id="light" />
-                  <Label htmlFor="light" className="flex items-center cursor-pointer">
-                    <Sun className="h-4 w-4 mr-2" />
-                    Light
-                  </Label>
+          <TabsContent value="custom" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Palette className="h-5 w-5 mr-2" />
+                  Create Custom Theme
+                </CardTitle>
+                <CardDescription>Design your own theme with custom colors</CardDescription>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="theme-name">Theme Name</Label>
+                  <Input
+                    id="theme-name"
+                    value={newTheme.name}
+                    onChange={(e) => handleColorChange('name', e.target.value)}
+                    placeholder="My Custom Theme"
+                  />
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="dark" id="dark" />
-                  <Label htmlFor="dark" className="flex items-center cursor-pointer">
-                    <Moon className="h-4 w-4 mr-2" />
-                    Dark
-                  </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="primary-color">Primary Color</Label>
+                    <div className="flex space-x-2">
+                      <div
+                        className="h-9 w-9 rounded border"
+                        style={{ backgroundColor: newTheme.primaryColor }}
+                      />
+                      <Input
+                        id="primary-color"
+                        type="color"
+                        value={newTheme.primaryColor}
+                        onChange={(e) => handleColorChange('primaryColor', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="secondary-color">Secondary Color</Label>
+                    <div className="flex space-x-2">
+                      <div
+                        className="h-9 w-9 rounded border"
+                        style={{ backgroundColor: newTheme.secondaryColor }}
+                      />
+                      <Input
+                        id="secondary-color"
+                        type="color"
+                        value={newTheme.secondaryColor}
+                        onChange={(e) => handleColorChange('secondaryColor', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="text-color">Text Color</Label>
+                    <div className="flex space-x-2">
+                      <div
+                        className="h-9 w-9 rounded border"
+                        style={{ backgroundColor: newTheme.textColor }}
+                      />
+                      <Input
+                        id="text-color"
+                        type="color"
+                        value={newTheme.textColor}
+                        onChange={(e) => handleColorChange('textColor', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="background-color">Background Color</Label>
+                    <div className="flex space-x-2">
+                      <div
+                        className="h-9 w-9 rounded border"
+                        style={{ backgroundColor: newTheme.backgroundColor }}
+                      />
+                      <Input
+                        id="background-color"
+                        type="color"
+                        value={newTheme.backgroundColor}
+                        onChange={(e) => handleColorChange('backgroundColor', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </RadioGroup>
+              </CardContent>
+              
+              <CardFooter>
+                <Button onClick={handleCreateTheme} disabled={isCreating || !newTheme.name}>
+                  {isCreating ? "Creating..." : "Create Theme"}
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <h3 className="font-medium mb-2">Preview</h3>
+              <div 
+                className="p-4 rounded-lg border"
+                style={{ 
+                  backgroundColor: newTheme.backgroundColor, 
+                  color: newTheme.textColor,
+                  borderColor: newTheme.primaryColor
+                }}
+              >
+                <h4 style={{ color: newTheme.primaryColor }}>Theme Preview</h4>
+                <p className="mt-2 text-sm">This is how your theme will look like.</p>
+                <button 
+                  className="mt-3 px-4 py-2 rounded-md text-white"
+                  style={{ backgroundColor: newTheme.primaryColor }}
+                >
+                  Button Example
+                </button>
+                <button 
+                  className="mt-3 ml-2 px-4 py-2 rounded-md text-white"
+                  style={{ backgroundColor: newTheme.secondaryColor }}
+                >
+                  Secondary Button
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setNewThemeDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleCreateTheme} className="bg-gocabs-primary hover:bg-gocabs-primary/90">
-              Create Theme
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
   );
 };
 

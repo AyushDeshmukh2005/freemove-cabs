@@ -1,165 +1,139 @@
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { toast } from "@/components/ui/use-toast";
-import { negotiateRideFare, getRideNegotiations, acceptCounterOffer } from "@/services/negotiationService";
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { createNegotiation, acceptCounterOffer, NegotiationRequest } from '@/services/negotiationService';
 
-interface NegotiationProps {
+interface FareNegotiationDialogProps {
+  open: boolean;
+  onClose: () => void;
   rideId: string;
-  userId: string;
-  originalFare: number;
-  isOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  estimatedFare: number;
+  onNegotiationCreated: (negotiationId: string) => void;
 }
 
-const FareNegotiationDialog = ({ rideId, userId, originalFare, isOpen, onOpenChange }: NegotiationProps) => {
-  const [userOffer, setUserOffer] = useState(Math.floor(originalFare * 0.8)); // Default offer at 80% of original
-  const [dialogOpen, setDialogOpen] = useState(isOpen || false);
-  
-  // Fetch existing negotiations
-  const { data: negotiations, isLoading, refetch } = useQuery({
-    queryKey: ['negotiations', rideId],
-    queryFn: () => getRideNegotiations(rideId),
-    enabled: dialogOpen
-  });
+const FareNegotiationDialog = ({
+  open,
+  onClose,
+  rideId,
+  estimatedFare,
+  onNegotiationCreated,
+}: FareNegotiationDialogProps) => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [offerAmount, setOfferAmount] = useState<number>(Math.floor(estimatedFare * 0.9));
+  const minOffer = Math.floor(estimatedFare * 0.7);
+  const maxOffer = Math.ceil(estimatedFare * 1.1);
   
   const handleSliderChange = (value: number[]) => {
-    setUserOffer(value[0]);
+    setOfferAmount(value[0]);
   };
   
-  const handleNegotiate = async () => {
-    try {
-      await negotiateRideFare({
-        rideId,
-        userId,
-        userOffer
-      });
-      
-      toast({
-        title: "Offer sent successfully!",
-        description: `Your offer of ₹${userOffer} has been sent to nearby drivers.`,
-      });
-      
-      refetch();
-    } catch (error) {
-      toast({
-        title: "Failed to send offer",
-        description: "There was an error submitting your fare offer. Please try again.",
-        variant: "destructive"
-      });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      setOfferAmount(value);
     }
   };
   
-  const handleAcceptCounter = async (negotiationId: string) => {
+  const handleSubmitOffer = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    
     try {
-      await acceptCounterOffer(negotiationId);
+      const negotiation = await createNegotiation(rideId, user.id, offerAmount.toString());
+      onNegotiationCreated(negotiation.id);
       
       toast({
-        title: "Counter offer accepted!",
-        description: "You've accepted the driver's counter offer. Your ride is being processed.",
+        title: "Offer submitted",
+        description: "Your fare offer has been sent to available drivers.",
       });
       
-      refetch();
-      setDialogOpen(false);
-      if (onOpenChange) onOpenChange(false);
+      onClose();
     } catch (error) {
       toast({
-        title: "Failed to accept offer",
-        description: "There was an error accepting the counter offer. Please try again.",
-        variant: "destructive"
+        title: "Submission failed",
+        description: "There was a problem submitting your offer.",
+        variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
+  
+  const handleCancel = () => {
+    onClose();
+  };
+  
+  const discount = (((estimatedFare - offerAmount) / estimatedFare) * 100).toFixed(1);
+  const isDiscount = offerAmount < estimatedFare;
   
   return (
-    <Dialog open={dialogOpen} onOpenChange={(open) => {
-      setDialogOpen(open);
-      if (onOpenChange) onOpenChange(open);
-    }}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Negotiate Fare</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Negotiate Your Ride Fare</DialogTitle>
+          <DialogTitle>Negotiate Fare</DialogTitle>
           <DialogDescription>
-            Set your preferred fare for this ride. Drivers can accept, reject, or counter your offer.
+            Propose your own fare for this ride. Drivers can accept or counter your offer.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
+        <div className="py-4 space-y-4">
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="fare-slider">Your Offer</Label>
-              <div className="text-2xl font-bold">₹{userOffer}</div>
+            <div className="flex justify-between">
+              <Label htmlFor="fare">Your offer</Label>
+              <span className={`text-sm font-medium ${isDiscount ? 'text-green-600' : 'text-amber-600'}`}>
+                {isDiscount ? `-${discount}%` : `+${Math.abs(parseFloat(discount))}%`}
+              </span>
             </div>
-            <div className="py-4">
-              <Slider
-                id="fare-slider"
-                defaultValue={[userOffer]}
-                max={originalFare}
-                min={Math.floor(originalFare * 0.5)}
-                step={5}
-                onValueChange={handleSliderChange}
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-500">$</span>
+              <Input
+                id="fare"
+                type="number"
+                value={offerAmount}
+                onChange={handleInputChange}
+                className="flex-1"
               />
             </div>
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <div>Min: ₹{Math.floor(originalFare * 0.5)}</div>
-              <div>Original: ₹{originalFare}</div>
+            <Slider
+              defaultValue={[offerAmount]}
+              value={[offerAmount]}
+              min={minOffer}
+              max={maxOffer}
+              step={0.5}
+              onValueChange={handleSliderChange}
+              className="mt-2"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>${minOffer.toFixed(2)}</span>
+              <span>Estimated: ${estimatedFare.toFixed(2)}</span>
+              <span>${maxOffer.toFixed(2)}</span>
             </div>
           </div>
           
-          <Button onClick={handleNegotiate} className="mt-2">Submit Offer</Button>
-          
-          {isLoading ? (
-            <div className="text-center py-4">Loading negotiations...</div>
-          ) : negotiations && negotiations.length > 0 ? (
-            <div className="space-y-3 mt-4">
-              <h3 className="font-medium text-sm">Negotiation History</h3>
-              {negotiations.map((negotiation: any) => (
-                <Card key={negotiation.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium">
-                          {negotiation.status === 'pending' ? 'Pending' :
-                           negotiation.status === 'accepted' ? 'Accepted' :
-                           negotiation.status === 'rejected' ? 'Rejected' : 'Countered'}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Your offer: ₹{negotiation.userOffer}
-                        </div>
-                        {negotiation.status === 'countered' && (
-                          <div className="text-sm font-medium mt-1">
-                            Counter offer: ₹{negotiation.driverCounterOffer}
-                          </div>
-                        )}
-                      </div>
-                      {negotiation.status === 'countered' && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleAcceptCounter(negotiation.id)}
-                        >
-                          Accept
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : null}
+          <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-3">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {isDiscount
+                ? "Lower offers may take longer to be accepted by drivers."
+                : "Higher offers may get you a ride faster with premium service."}
+            </p>
+          </div>
         </div>
         
         <DialogFooter>
-          <div className="text-xs text-muted-foreground w-full text-center">
-            Offers expire after 10 minutes. Drivers may counter your offer with their own price.
-          </div>
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmitOffer} disabled={isLoading}>
+            {isLoading ? "Submitting..." : "Submit Offer"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

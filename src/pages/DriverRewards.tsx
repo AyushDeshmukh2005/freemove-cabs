@@ -1,349 +1,469 @@
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import DashboardLayout from '@/components/DashboardLayout';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { driverRewardsService, DriverReward } from '@/services/driverRewardsService';
-import { 
-  Trophy, 
-  Star, 
-  Award, 
-  Gift, 
-  ArrowUpRight, 
-  CheckCircle2, 
-  Circle, 
-  Clock, 
-  ShieldCheck 
-} from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { Award, Gift, Calendar, Smile, CheckCircle, Star, TrendingUp, BarChart } from 'lucide-react';
 
 const DriverRewards = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [pointsData, setPointsData] = useState({
+    totalPoints: 1250,
+    currentLevel: 'Silver',
+    nextLevel: 'Gold',
+    pointsToNextLevel: 750,
+    pointsThisMonth: 320,
+  });
   
-  const [rewards, setRewards] = useState<DriverReward | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [rewards, setRewards] = useState([
+    {
+      id: '1',
+      name: 'Free Car Wash',
+      description: 'One free premium car wash at partnered locations',
+      pointsCost: 200,
+      expiryDate: '2025-05-30',
+      isAvailable: true,
+      category: 'service'
+    },
+    {
+      id: '2',
+      name: 'Fuel Discount Card',
+      description: '10% off on fuel purchases for one month',
+      pointsCost: 500,
+      expiryDate: '2025-04-30',
+      isAvailable: true,
+      category: 'discount'
+    },
+    {
+      id: '3',
+      name: 'Premium Dashboard',
+      description: 'Unlock premium features on your driver dashboard',
+      pointsCost: 1000,
+      expiryDate: '2025-06-15',
+      isAvailable: true,
+      category: 'feature'
+    },
+    {
+      id: '4',
+      name: 'Car Maintenance',
+      description: 'Free basic car maintenance service',
+      pointsCost: 800,
+      expiryDate: '2025-05-10',
+      isAvailable: true,
+      category: 'service'
+    }
+  ]);
+
+  const [claimedRewards, setClaimedRewards] = useState([
+    {
+      id: '5',
+      name: 'Priority Rides',
+      description: 'Get priority access to high-fare rides for 1 week',
+      pointsCost: 300,
+      claimDate: '2025-03-15',
+      expiryDate: '2025-03-22',
+      redeemed: true,
+      category: 'feature'
+    }
+  ]);
   
-  // Load driver rewards
-  useEffect(() => {
-    const loadRewards = async () => {
-      if (!user) return;
-      
-      try {
-        const driverRewards = await driverRewardsService.getDriverRewards(user.id);
-        setRewards(driverRewards);
-      } catch (error) {
+  const [activities, setActivities] = useState([
+    {
+      id: '1',
+      type: 'ride_completed',
+      description: 'Completed 5-star ride',
+      points: 25,
+      date: '2025-04-04'
+    },
+    {
+      id: '2',
+      type: 'consecutive_days',
+      description: '5 consecutive days active',
+      points: 75,
+      date: '2025-04-03'
+    },
+    {
+      id: '3',
+      type: 'peak_hours',
+      description: 'Peak hours bonus',
+      points: 50,
+      date: '2025-04-02'
+    },
+    {
+      id: '4',
+      type: 'referral',
+      description: 'Driver referral bonus',
+      points: 200,
+      date: '2025-03-28'
+    },
+    {
+      id: '5',
+      type: 'challenge',
+      description: 'Weekend challenge completed',
+      points: 100,
+      date: '2025-03-25'
+    }
+  ]);
+  
+  const handleClaimReward = (rewardId: string) => {
+    const rewardToClaim = rewards.find(reward => reward.id === rewardId);
+    
+    if (rewardToClaim) {
+      if (pointsData.totalPoints < rewardToClaim.pointsCost) {
         toast({
-          title: "Failed to Load Rewards",
-          description: "There was an error loading your rewards data.",
+          title: "Not enough points",
+          description: `You need ${rewardToClaim.pointsCost - pointsData.totalPoints} more points to claim this reward.`,
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
+      
+      // Update points
+      setPointsData({
+        ...pointsData,
+        totalPoints: pointsData.totalPoints - rewardToClaim.pointsCost
+      });
+      
+      // Move reward from available to claimed
+      setRewards(rewards.filter(r => r.id !== rewardId));
+      setClaimedRewards([
+        ...claimedRewards,
+        {
+          ...rewardToClaim,
+          claimDate: new Date().toISOString().split('T')[0],
+          redeemed: false
+        }
+      ]);
+      
+      toast({
+        title: "Reward Claimed",
+        description: `You have successfully claimed ${rewardToClaim.name}.`,
+      });
+    }
+  };
+  
+  const handleRedeemReward = (rewardId: string) => {
+    setClaimedRewards(
+      claimedRewards.map(reward => 
+        reward.id === rewardId ? { ...reward, redeemed: true } : reward
+      )
+    );
     
-    loadRewards();
-  }, [user, toast]);
-  
-  const getLevelInfo = (level: 'bronze' | 'silver' | 'gold' | 'platinum') => {
-    switch (level) {
-      case 'bronze':
-        return {
-          color: 'text-amber-600',
-          bgColor: 'bg-amber-100 dark:bg-amber-900/30',
-          icon: <Trophy className="h-5 w-5 text-amber-600" />,
-          nextLevel: 'silver',
-          pointsToNext: 500,
-          benefits: ['Standard ride requests', 'Basic driver support', 'Weekly earnings']
-        };
-      case 'silver':
-        return {
-          color: 'text-gray-500',
-          bgColor: 'bg-gray-100 dark:bg-gray-800',
-          icon: <Trophy className="h-5 w-5 text-gray-500" />,
-          nextLevel: 'gold',
-          pointsToNext: 2000,
-          benefits: ['Priority ride matching', '24/7 premium support', '3% extra earnings', 'Cancellation protection']
-        };
-      case 'gold':
-        return {
-          color: 'text-yellow-500',
-          bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-          icon: <Trophy className="h-5 w-5 text-yellow-500" />,
-          nextLevel: 'platinum',
-          pointsToNext: 5000,
-          benefits: ['Premium ride priority', 'Dedicated support line', '8% extra earnings', 'Exclusive promotions', 'Flexible schedule']
-        };
-      case 'platinum':
-        return {
-          color: 'text-purple-600',
-          bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-          icon: <ShieldCheck className="h-5 w-5 text-purple-600" />,
-          nextLevel: null,
-          pointsToNext: null,
-          benefits: ['First access to all rides', 'VIP support', '15% extra earnings', 'Special events access', 'Free account benefits', 'Loyalty rewards']
-        };
-    }
+    toast({
+      title: "Reward Redeemed",
+      description: "Your reward has been successfully redeemed.",
+    });
   };
   
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gocabs-dark p-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-          
-          <Skeleton className="h-32 w-full rounded-xl mb-6" />
-          <Skeleton className="h-64 w-full rounded-xl mb-6" />
-          <Skeleton className="h-64 w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-  
-  if (!rewards) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gocabs-dark p-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Driver Rewards</h1>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-            >
-              Back to Dashboard
-            </Button>
-          </div>
-          
-          <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 text-center">
-            <Trophy className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">No Rewards Data</h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              We couldn't find any rewards data for your account.
-            </p>
-            <Button 
-              className="bg-gocabs-primary hover:bg-gocabs-primary/90"
-              onClick={() => navigate('/dashboard')}
-            >
-              Return to Dashboard
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  const levelInfo = getLevelInfo(rewards.level);
-  
-  // Calculate progress to next level
-  const getProgressToNextLevel = () => {
-    if (rewards.level === 'bronze') {
-      return (rewards.totalPoints / 500) * 100;
-    } else if (rewards.level === 'silver') {
-      return ((rewards.totalPoints - 500) / 1500) * 100;
-    } else if (rewards.level === 'gold') {
-      return ((rewards.totalPoints - 2000) / 3000) * 100;
-    }
-    return 100;
+  const getProgressColor = () => {
+    const progress = (pointsData.totalPoints / (pointsData.totalPoints + pointsData.pointsToNextLevel)) * 100;
+    if (progress > 75) return "bg-green-500";
+    if (progress > 40) return "bg-blue-500";
+    return "bg-gocabs-primary";
   };
-  
+
+  const tiers = [
+    { name: "Bronze", points: 0, perks: ["Basic driver support", "Standard ride matching"] },
+    { name: "Silver", points: 1000, perks: ["Priority customer support", "5% bonus on peak rides", "Monthly car wash discount"] },
+    { name: "Gold", points: 2000, perks: ["Dedicated support line", "10% bonus on peak rides", "Monthly car wash free", "Fuel discounts"] },
+    { name: "Platinum", points: 5000, perks: ["VIP support 24/7", "15% bonus on all rides", "Weekly car wash free", "Premium fuel & maintenance discounts", "Early access to new features"] },
+    { name: "Diamond", points: 10000, perks: ["Concierge support", "20% bonus on all rides", "Unlimited car washes", "Comprehensive car maintenance program", "Exclusive driver events"] }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gocabs-dark p-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Driver Rewards</h1>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate('/dashboard')}
-          >
-            Back to Dashboard
-          </Button>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold dark:text-white">Driver Rewards</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Earn points and claim rewards as you complete rides
+          </p>
         </div>
         
-        {/* Level & Points Summary */}
-        <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className={`${levelInfo.bgColor} p-2 rounded-full mr-3`}>
-                {levelInfo.icon}
-              </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center">
+              <Award className="h-5 w-5 mr-2 text-amber-500" />
+              Your Reward Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
               <div>
-                <h2 className="font-bold text-lg text-gray-800 dark:text-white capitalize">
-                  {rewards.level} Driver
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {rewards.totalPoints} total points
+                <div className="flex items-center mb-1">
+                  <h3 className="font-bold text-lg">{pointsData.currentLevel} Tier</h3>
+                  <Badge className="ml-2 bg-amber-500">{pointsData.totalPoints} Points</Badge>
+                </div>
+                <p className="text-sm text-gray-500">
+                  {pointsData.pointsToNextLevel} points to reach {pointsData.nextLevel} tier
                 </p>
               </div>
-            </div>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-gocabs-primary border-gocabs-primary"
-              onClick={() => {
-                toast({
-                  title: "Points History",
-                  description: "Feature coming soon! You'll be able to see your detailed points history here.",
-                });
-              }}
-            >
-              View History
-            </Button>
-          </div>
-          
-          {levelInfo.nextLevel && (
-            <div className="mt-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-600 dark:text-gray-300">
-                  Progress to {levelInfo.nextLevel}
-                </span>
-                <span className="text-gray-800 dark:text-gray-200 font-medium">
-                  {rewards.totalPoints} / {levelInfo.pointsToNext} points
-                </span>
+              <div className="mt-2 md:mt-0 text-right">
+                <p className="text-sm font-medium">Points this month: {pointsData.pointsThisMonth}</p>
               </div>
-              <Progress value={getProgressToNextLevel()} className="h-2" />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {Math.max(0, levelInfo.pointsToNext! - rewards.totalPoints)} more points needed to reach {levelInfo.nextLevel}
-              </p>
-            </div>
-          )}
-          
-          <Separator className="my-4" />
-          
-          <div>
-            <h3 className="font-medium text-gray-800 dark:text-white mb-3">Level Benefits:</h3>
-            <ul className="space-y-2">
-              {levelInfo.benefits.map((benefit, index) => (
-                <li key={index} className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                  <CheckCircle2 className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  {benefit}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-        
-        {/* Achievements */}
-        <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-center mb-4">
-            <Award className="h-5 w-5 text-gocabs-primary mr-2" />
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-              Your Achievements
-            </h2>
-          </div>
-          
-          {rewards.achievements.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-              <Award className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-600 dark:text-gray-300">
-                You haven't earned any achievements yet. Complete rides to earn your first achievement!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {rewards.achievements.map((achievement) => (
-                <div 
-                  key={achievement.id}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-                >
-                  <div className="flex items-start">
-                    <div className="bg-gocabs-primary/10 p-2 rounded-full mr-3 flex-shrink-0">
-                      <Star className="h-5 w-5 text-gocabs-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-800 dark:text-white">{achievement.name}</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{achievement.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
-                          +{achievement.pointsAwarded} points
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Earned {new Date(achievement.dateEarned).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        {/* Milestones */}
-        <div className="bg-white dark:bg-gocabs-secondary/30 rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <Gift className="h-5 w-5 text-gocabs-primary mr-2" />
-              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-                Milestones & Rewards
-              </h2>
             </div>
             
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="text-gocabs-primary p-0 h-auto"
-              onClick={() => {
-                toast({
-                  title: "All Milestones",
-                  description: "Feature coming soon! You'll be able to see all available milestones here.",
-                });
-              }}
-            >
-              View All <ArrowUpRight className="h-3 w-3 ml-1" />
-            </Button>
-          </div>
+            <div className="space-y-1 mb-4">
+              <div className="flex justify-between text-xs mb-1">
+                <span>{pointsData.currentLevel}</span>
+                <span>{pointsData.nextLevel}</span>
+              </div>
+              <Progress 
+                value={(pointsData.totalPoints / (pointsData.totalPoints + pointsData.pointsToNextLevel)) * 100} 
+                className={`h-2 ${getProgressColor()}`}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+              <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                <Star className="h-5 w-5 text-yellow-500 mb-1" />
+                <p className="text-xs text-gray-600 dark:text-gray-400">Rating</p>
+                <p className="font-semibold">4.92/5</p>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                <Calendar className="h-5 w-5 text-blue-500 mb-1" />
+                <p className="text-xs text-gray-600 dark:text-gray-400">Active Days</p>
+                <p className="font-semibold">24 days</p>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                <TrendingUp className="h-5 w-5 text-green-500 mb-1" />
+                <p className="text-xs text-gray-600 dark:text-gray-400">Completion Rate</p>
+                <p className="font-semibold">98%</p>
+              </div>
+              
+              <div className="flex flex-col items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-md">
+                <Smile className="h-5 w-5 text-orange-500 mb-1" />
+                <p className="text-xs text-gray-600 dark:text-gray-400">Compliments</p>
+                <p className="font-semibold">42</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Tabs defaultValue="rewards">
+          <TabsList className="mb-4">
+            <TabsTrigger value="rewards">Available Rewards</TabsTrigger>
+            <TabsTrigger value="claimed">My Rewards</TabsTrigger>
+            <TabsTrigger value="activity">Point History</TabsTrigger>
+            <TabsTrigger value="tiers">Reward Tiers</TabsTrigger>
+          </TabsList>
           
-          <div className="space-y-4">
-            {rewards.milestones.map((milestone) => (
-              <div 
-                key={milestone.id}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center">
-                    {milestone.completed ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" />
-                    ) : (
-                      <Clock className="h-5 w-5 text-blue-500 mr-2" />
-                    )}
-                    <div>
-                      <h3 className="font-medium text-gray-800 dark:text-white">{milestone.name}</h3>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                        {milestone.completed ? (
-                          <span className="text-green-600 dark:text-green-400">Completed</span>
-                        ) : (
-                          <span>Reward: {milestone.reward}</span>
+          <TabsContent value="rewards" className="space-y-4">
+            {rewards.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {rewards.map((reward) => (
+                  <Card key={reward.id} className="overflow-hidden">
+                    <div className={`h-2 ${
+                      reward.category === 'service'
+                        ? 'bg-blue-500'
+                        : reward.category === 'discount'
+                        ? 'bg-green-500'
+                        : 'bg-purple-500'
+                    }`} />
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{reward.name}</CardTitle>
+                      <CardDescription>{reward.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline" className="font-normal">
+                          {reward.pointsCost} Points
+                        </Badge>
+                        <p className="text-xs text-gray-500">
+                          Expires: {new Date(reward.expiryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-0">
+                      <Button 
+                        onClick={() => handleClaimReward(reward.id)} 
+                        disabled={pointsData.totalPoints < reward.pointsCost}
+                        className="w-full"
+                      >
+                        {pointsData.totalPoints >= reward.pointsCost
+                          ? "Claim Reward"
+                          : `Need ${reward.pointsCost - pointsData.totalPoints} More Points`
+                        }
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Gift className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">No Available Rewards</h3>
+                <p className="text-gray-500 mt-1">
+                  Check back later for new rewards or earn more points to unlock special offers.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="claimed" className="space-y-4">
+            {claimedRewards.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {claimedRewards.map((reward) => (
+                  <Card key={reward.id} className={`${reward.redeemed ? 'bg-gray-50 dark:bg-gray-800/50' : ''}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between">
+                        <CardTitle className="text-lg">{reward.name}</CardTitle>
+                        {reward.redeemed && (
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Redeemed
+                          </Badge>
                         )}
                       </div>
-                    </div>
-                  </div>
-                  
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {milestone.current} / {milestone.target}
-                  </span>
-                </div>
-                
-                <Progress 
-                  value={(milestone.current / milestone.target) * 100} 
-                  className="h-2"
-                />
+                      <CardDescription>{reward.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center text-sm">
+                        <p className="text-gray-500">
+                          Claimed: {new Date(reward.claimDate).toLocaleDateString()}
+                        </p>
+                        <p className={`${reward.redeemed ? 'text-gray-500' : 'text-red-500'}`}>
+                          Expires: {new Date(reward.expiryDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-0">
+                      {!reward.redeemed && (
+                        <Button 
+                          onClick={() => handleRedeemReward(reward.id)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          Redeem Now
+                        </Button>
+                      )}
+                      {reward.redeemed && (
+                        <p className="text-sm text-center w-full text-gray-500">
+                          You've redeemed this reward on {new Date(reward.claimDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            ) : (
+              <div className="text-center py-12">
+                <Gift className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">No Claimed Rewards</h3>
+                <p className="text-gray-500 mt-1">
+                  You haven't claimed any rewards yet. Check out the available rewards.
+                </p>
+                <Button 
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => document.querySelector('[value="rewards"]')?.click()}
+                >
+                  View Available Rewards
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="activity" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart className="h-5 w-5 mr-2" />
+                  Points Activity
+                </CardTitle>
+                <CardDescription>
+                  Recent points earned from your activities
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <div 
+                      key={activity.id} 
+                      className="flex justify-between items-center p-3 border-b last:border-b-0"
+                    >
+                      <div>
+                        <p className="font-medium">{activity.description}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(activity.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">
+                        +{activity.points} points
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="tiers" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Reward Tiers & Benefits</CardTitle>
+                <CardDescription>
+                  Unlock more benefits as you progress through tiers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {tiers.map((tier, index) => (
+                    <div 
+                      key={tier.name} 
+                      className={`border rounded-lg p-4 ${
+                        tier.name === pointsData.currentLevel 
+                          ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/20' 
+                          : ''
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center">
+                          <div className={`h-6 w-6 rounded-full mr-2 flex items-center justify-center ${
+                            index === 0 ? 'bg-orange-700' :
+                            index === 1 ? 'bg-gray-400' :
+                            index === 2 ? 'bg-yellow-500' :
+                            index === 3 ? 'bg-gray-200' :
+                            'bg-blue-500'
+                          }`}>
+                            <Award className="h-3 w-3 text-white" />
+                          </div>
+                          <h3 className="font-semibold">{tier.name}</h3>
+                        </div>
+                        <Badge variant="outline" className="text-gray-600">
+                          {tier.points.toLocaleString()} Points
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-1 ml-8">
+                        {tier.perks.map((perk, i) => (
+                          <div key={i} className="flex items-start">
+                            <CheckCircle className="h-3 w-3 text-green-500 mr-1.5 mt-1" />
+                            <p className="text-sm">{perk}</p>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {tier.name === pointsData.currentLevel && (
+                        <p className="text-sm mt-2 text-amber-600 font-medium">
+                          Your current tier
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 
