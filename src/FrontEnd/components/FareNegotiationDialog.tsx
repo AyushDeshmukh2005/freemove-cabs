@@ -1,18 +1,17 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { toast } from "@/components/ui/use-toast";
-import { negotiateRideFare, getRideNegotiations, acceptCounterOffer } from "@/services/negotiationService";
+import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { Card, CardContent } from "../components/ui/card";
+import { Label } from "../components/ui/label";
+import { Slider } from "../components/ui/slider";
+import { toast } from "../components/ui/use-toast";
+import { negotiateRideFare, getRideNegotiations, acceptCounterOffer } from "../services/negotiationService";
 
 interface NegotiationProps {
-  rideId: number;
-  userId: number;
+  rideId: string;
+  userId: string;
   originalFare: number;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -38,7 +37,7 @@ const FareNegotiationDialog = ({ rideId, userId, originalFare, isOpen, onOpenCha
       await negotiateRideFare({
         rideId,
         userId,
-        userOffer
+        userOffer: userOffer.toString() // Convert to string as required by the API
       });
       
       toast({
@@ -56,7 +55,7 @@ const FareNegotiationDialog = ({ rideId, userId, originalFare, isOpen, onOpenCha
     }
   };
   
-  const handleAcceptCounter = async (negotiationId: number) => {
+  const handleAcceptCounter = async (negotiationId: string) => {
     try {
       await acceptCounterOffer(negotiationId);
       

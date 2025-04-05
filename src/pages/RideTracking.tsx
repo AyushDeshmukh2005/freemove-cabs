@@ -1,521 +1,547 @@
 
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, UserCheck, Clock, Star, X, Share2, Plus, Users, MessageSquare, Headphones, Briefcase, VolumeX } from 'lucide-react';
-import DashboardLayout from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Ride, getRideById, cancelRide, rateRide, RideStop } from '@/services/rideService';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import DashboardLayout from '@/components/DashboardLayout';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
-import StopsManager from '@/components/ride/StopsManager';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { getRideById, cancelRide, rateRide, changeRideDestination, addStopToRide } from '@/services/rideService';
 import SplitPayment from '@/components/ride/SplitPayment';
-
-// Define interval type for ride updates
-let rideUpdateInterval: number | NodeJS.Timeout;
+import { MapPin, Navigation, User, Phone, Clock, AlertTriangle, Calendar, MessageSquare, Star, Ban, CheckCircle2, CircleDollarSign, Plus, Share2, Edit } from 'lucide-react';
+import StopsManager from '@/components/ride/StopsManager';
 
 const RideTracking = () => {
-  const { rideId } = useParams<{ rideId: string }>();
-  const { toast } = useToast();
+  const { rideId } = useParams();
   const navigate = useNavigate();
-  const [ride, setRide] = useState<Ride | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentPosition, setCurrentPosition] = useState<{lat: number, lng: number} | null>(null);
-  const [showRating, setShowRating] = useState(false);
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
-  const [selectedRating, setSelectedRating] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState('');
+  const [isNewDestinationOpen, setIsNewDestinationOpen] = useState(false);
+  const [newDestination, setNewDestination] = useState('');
+  const [isAddStopOpen, setIsAddStopOpen] = useState(false);
+  const [newStop, setNewStop] = useState('');
+  const [selectedStopIndex, setSelectedStopIndex] = useState<number | null>(null);
   
-  // Set up ride fetch
+  // Fetch ride data
+  const { data: ride, isLoading, error, refetch } = useQuery({
+    queryKey: ['ride', rideId],
+    queryFn: () => getRideById(rideId as string),
+    enabled: !!rideId && !!user,
+  });
+
   useEffect(() => {
-    const fetchRide = async () => {
-      if (!rideId) return;
-      
-      try {
-        const rideData = await getRideById(rideId);
-        if (rideData) {
-          setRide(rideData);
-        } else {
-          toast({
-            title: "Ride Not Found",
-            description: "Could not find the ride you're looking for.",
-            variant: "destructive",
-          });
-          navigate('/dashboard');
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "There was an error fetching ride details.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchRide();
-    
-    // Cleanup function
-    return () => {
-      if (rideUpdateInterval) {
-        clearInterval(rideUpdateInterval as number);
-      }
-    };
-  }, [rideId, toast, navigate]);
-  
-  // Set up ride status updates
-  useEffect(() => {
-    if (ride && ['accepted', 'in_progress'].includes(ride.status)) {
-      // Start ride updates with a polling interval
-      rideUpdateInterval = setInterval(async () => {
-        try {
-          // Simulate position updates
-          setCurrentPosition({
-            lat: Math.random() * 0.01 + 37.7749,
-            lng: Math.random() * 0.01 - 122.4194
-          });
-          
-          // Check for ride updates
-          const updatedRide = await getRideById(ride.id);
-          if (updatedRide && updatedRide.status !== ride.status) {
-            setRide(updatedRide);
-            
-            if (updatedRide.status === 'completed') {
-              if (rideUpdateInterval) {
-                clearInterval(rideUpdateInterval as number);
-              }
-              setShowRating(true);
-            }
-          }
-        } catch (error) {
-          console.error('Error updating ride:', error);
-        }
-      }, 5000);
-      
-      return () => {
-        if (rideUpdateInterval) {
-          clearInterval(rideUpdateInterval as number);
-        }
-      };
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load ride details. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    if (ride && ride.status === 'completed' && !ride.userRating) {
-      setShowRating(true);
-    }
-  }, [ride]);
-  
-  const handleCancelRide = async () => {
-    if (!ride) return;
-    
-    if (window.confirm('Are you sure you want to cancel this ride?')) {
-      try {
-        const updatedRide = await cancelRide(ride.id);
-        
-        toast({
-          title: "Ride Cancelled",
-          description: "Your ride has been cancelled successfully.",
-        });
-        
-        setRide(updatedRide);
-      } catch (error) {
-        toast({
-          title: "Cancellation Failed",
-          description: "This ride cannot be cancelled at this time.",
-          variant: "destructive",
-        });
-      }
+  }, [error, toast]);
+
+  // Formatted ride information for display
+  const formatDate = (dateString: string | Date) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-500 text-white';
+      case 'accepted':
+        return 'bg-blue-500 text-white';
+      case 'in_progress':
+        return 'bg-green-500 text-white';
+      case 'completed':
+        return 'bg-purple-500 text-white';
+      case 'cancelled':
+        return 'bg-red-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
     }
   };
-  
-  const handleRateRide = async () => {
-    if (!ride || selectedRating === 0) return;
-    
-    setIsSubmittingRating(true);
+
+  // Handler functions
+  const handleCancel = async () => {
+    if (!rideId) return;
     
     try {
-      await rateRide(ride.id, selectedRating, "");
-      
+      await cancelRide(rideId);
       toast({
-        title: "Thanks for Rating",
-        description: "Your feedback helps us improve our service.",
+        title: "Ride Cancelled",
+        description: "Your ride has been successfully cancelled.",
       });
-      
-      setShowRating(false);
-      
-      // Refresh ride data
-      const updatedRide = await getRideById(ride.id);
-      if (updatedRide) {
-        setRide(updatedRide);
-      }
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Cancellation Failed",
+        description: "Could not cancel your ride. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRateRide = async () => {
+    if (!rideId) return;
+    
+    try {
+      await rateRide(rideId, ratingValue, ratingFeedback);
+      toast({
+        title: "Thank You!",
+        description: "Your rating has been submitted successfully.",
+      });
+      setIsRatingOpen(false);
+      refetch();
     } catch (error) {
       toast({
         title: "Rating Failed",
-        description: "There was an error submitting your rating.",
+        description: "Could not submit your rating. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmittingRating(false);
-    }
-  };
-  
-  const handleRefreshRide = async () => {
-    if (!rideId) return;
-    
-    setIsLoading(true);
-    
-    try {
-      const updatedRide = await getRideById(rideId);
-      if (updatedRide) {
-        setRide(updatedRide);
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "There was an error refreshing ride details.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const getMoodIcon = (mood?: string) => {
-    switch (mood) {
-      case 'chatty':
-        return <MessageSquare className="h-4 w-4 text-blue-500" />;
-      case 'quiet':
-        return <VolumeX className="h-4 w-4 text-purple-500" />;
-      case 'work':
-        return <Briefcase className="h-4 w-4 text-green-500" />;
-      case 'music':
-        return <Headphones className="h-4 w-4 text-orange-500" />;
-      default:
-        return null;
+  const handleChangeDestination = async () => {
+    if (!rideId || !newDestination) return;
+    
+    try {
+      await changeRideDestination(rideId, newDestination);
+      toast({
+        title: "Destination Updated",
+        description: "Your ride destination has been changed.",
+      });
+      setIsNewDestinationOpen(false);
+      setNewDestination('');
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: "Could not update your destination. Please try again.",
+        variant: "destructive",
+      });
     }
   };
-  
+
+  const handleAddStop = async () => {
+    if (!rideId || !newStop) return;
+    
+    try {
+      await addStopToRide(rideId, newStop);
+      toast({
+        title: "Stop Added",
+        description: "A new stop has been added to your ride.",
+      });
+      setIsAddStopOpen(false);
+      setNewStop('');
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Failed to Add Stop",
+        description: "Could not add the stop to your ride. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Star rating component
+  const StarRating = ({ rating, setRating }: { rating: number; setRating: (rating: number) => void }) => {
+    return (
+      <div className="flex space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => setRating(star)}
+            className={`text-2xl ${
+              star <= rating ? 'text-yellow-400' : 'text-gray-300'
+            }`}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  if (isLoading || !ride) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gocabs-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Define compatible RideStop type
+  interface RideStopWithPosition {
+    id?: string;
+    address: string;
+    lat: number;
+    lng: number;
+    isCompleted?: boolean;
+    order?: number;
+    position?: number;
+    rideId?: string;
+  }
+
+  // Convert stops to compatible format if needed
+  const compatibleStops: RideStopWithPosition[] = ride.stops?.map(stop => ({
+    ...stop,
+    lat: stop.lat || 0,
+    lng: stop.lng || 0,
+    position: stop.order || 0
+  })) || [];
+
   return (
     <DashboardLayout>
-      {isLoading ? (
-        <div className="flex items-center justify-center h-48">
-          <p className="text-gray-500">Loading ride details...</p>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+            Ride Details
+          </h1>
+          <Badge className={getStatusColor(ride.status)}>
+            {ride.status.replace('_', ' ').toUpperCase()}
+          </Badge>
         </div>
-      ) : ride ? (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold dark:text-white">
-                {ride.status === 'pending' && 'Finding your driver...'}
-                {ride.status === 'accepted' && 'Driver is on the way!'}
-                {ride.status === 'in_progress' && 'On the way to your destination'}
-                {ride.status === 'completed' && 'Ride Completed'}
-                {ride.status === 'cancelled' && 'Ride Cancelled'}
-              </h1>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ride Information</CardTitle>
+            <CardDescription>
+              Ride #{rideId} • {formatDate(ride.createdAt)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Route</h3>
               
-              {ride.status !== 'cancelled' && (
-                <p className="text-gray-500 dark:text-gray-400 mt-1">
-                  {ride.status === 'pending' && 'Looking for drivers near you...'}
-                  {ride.status === 'accepted' && 'Your driver will arrive shortly'}
-                  {ride.status === 'in_progress' && 'Enjoy your ride to the destination'}
-                  {ride.status === 'completed' && 'Thanks for riding with us!'}
-                </p>
-              )}
-            </div>
-            
-            {['pending', 'accepted'].includes(ride.status) && (
-              <Button variant="destructive" onClick={handleCancelRide}>
-                Cancel Ride
-              </Button>
-            )}
-            
-            {ride.status === 'in_progress' && (
-              <Badge className="bg-gocabs-primary text-white px-3 py-1.5">
-                In Progress
-              </Badge>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ride Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-gray-50 dark:bg-gray-800/30 p-4 rounded-lg space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <div className="p-2 bg-gocabs-primary/20 rounded-full">
-                        <MapPin className="h-5 w-5 text-gocabs-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Pickup</p>
-                        <p className="font-medium dark:text-gray-200">{ride.startLocation.address}</p>
-                        {ride.nearbyLandmark && (
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            Near {ride.nearbyLandmark}
-                          </Badge>
-                        )}
-                      </div>
+              <div className="space-y-4">
+                <div className="flex">
+                  <div className="mr-3 flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-gocabs-primary/10 flex items-center justify-center">
+                      <MapPin className="h-4 w-4 text-gocabs-primary" />
                     </div>
-                    
-                    {ride.stops && ride.stops.length > 0 && (
-                      <>
-                        {ride.stops.map((stop, index) => (
-                          <div key={index} className="flex items-start space-x-3">
-                            <div className="p-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                              <span className="block h-5 w-5 text-center font-medium text-gray-700 dark:text-gray-300">
-                                {index + 1}
-                              </span>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Stop {index + 1}</p>
-                              <p className="font-medium dark:text-gray-200">{stop.address}</p>
-                              {stop.isCompleted && (
-                                <Badge variant="outline" className="mt-1 text-xs bg-green-500/10 text-green-600 dark:text-green-400 border-green-200">
-                                  Completed
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="p-2 bg-gocabs-primary/20 rounded-full">
-                        <Navigation className="h-5 w-5 text-gocabs-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Destination</p>
-                        <p className="font-medium dark:text-gray-200">{ride.endLocation.address}</p>
-                      </div>
+                    <div className="w-0.5 h-full bg-gray-200 dark:bg-gray-700"></div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Pickup Location
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {ride.startLocation.address}
+                    </p>
+                  </div>
+                </div>
+                
+                {compatibleStops.length > 0 && (
+                  <StopsManager 
+                    stops={compatibleStops} 
+                    currentStopIndex={selectedStopIndex} 
+                    onSelectStop={(index) => setSelectedStopIndex(index)}
+                  />
+                )}
+                
+                <div className="flex">
+                  <div className="mr-3 flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-gocabs-primary/10 flex items-center justify-center">
+                      <Navigation className="h-4 w-4 text-gocabs-primary" />
                     </div>
                   </div>
-                  
-                  {['in_progress', 'accepted'].includes(ride.status) && (
-                    <StopsManager
-                      rideId={ride.id}
-                      currentStops={ride.stops}
-                      currentDestination={ride.endLocation.address}
-                      onStopAdded={handleRefreshRide}
-                      onDestinationChanged={handleRefreshRide}
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      Destination
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {ride.endLocation.address}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Ride Details
+                </h3>
+                <ul className="space-y-2">
+                  <li className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Distance</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {ride.distance} km
+                    </span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Duration</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {ride.duration} mins
+                    </span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Ride Type</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                      {ride.rideType}
+                    </span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Payment Method</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                      {ride.paymentMethod || "Not specified"}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Price Breakdown
+                </h3>
+                <ul className="space-y-2">
+                  <li className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Base Fare</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      ${(ride.fare * 0.8).toFixed(2)}
+                    </span>
+                  </li>
+                  {ride.appliedDiscount && (
+                    <li className="flex justify-between">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Discount</span>
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                        -${(ride.fare * ride.appliedDiscount).toFixed(2)}
+                      </span>
+                    </li>
+                  )}
+                  {ride.weatherAdjustment && (
+                    <li className="flex justify-between">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Weather Adjustment</span>
+                      <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                        +${(ride.fare * ride.weatherAdjustment).toFixed(2)}
+                      </span>
+                    </li>
+                  )}
+                  <li className="flex justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">Total</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      ${ride.fare.toFixed(2)}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {ride.driverId && (
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  Driver Information
+                </h3>
+                <div className="flex items-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-300 dark:bg-gray-700 overflow-hidden mr-4">
+                    <User className="h-12 w-12 text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      John Driver
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Toyota Camry • ABC 1234
+                    </p>
+                    <div className="flex items-center mt-1">
+                      <Star className="h-3 w-3 text-yellow-400 mr-1" />
+                      <span className="text-xs text-gray-600 dark:text-gray-300">4.8</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="ml-auto">
+                    <Phone className="h-4 w-4 mr-2" /> Contact
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-wrap gap-2">
+            {ride.status === 'completed' && !ride.isRated && (
+              <Dialog open={isRatingOpen} onOpenChange={setIsRatingOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex-1">
+                    <Star className="h-4 w-4 mr-2" /> Rate Ride
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Rate Your Ride</DialogTitle>
+                    <DialogDescription>
+                      Please rate your experience with this ride.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-center py-4">
+                    <StarRating rating={ratingValue} setRating={setRatingValue} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="feedback">Feedback (Optional)</Label>
+                    <Textarea 
+                      id="feedback"
+                      placeholder="Share your experience..." 
+                      value={ratingFeedback}
+                      onChange={(e) => setRatingFeedback(e.target.value)}
                     />
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Ride Type</p>
-                      <p className="font-medium dark:text-gray-200">
-                        {ride.rideType.charAt(0).toUpperCase() + ride.rideType.slice(1)}
-                        {ride.rideType === 'eco' && (
-                          <Badge className="ml-2 bg-green-500 text-xs">Eco</Badge>
-                        )}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Payment Method</p>
-                      <p className="font-medium dark:text-gray-200">
-                        {ride.paymentMethod?.charAt(0).toUpperCase() + ride.paymentMethod?.slice(1)}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Distance</p>
-                      <p className="font-medium dark:text-gray-200">{ride.distance.toFixed(1)} km</p>
-                    </div>
-                    
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Estimated Time</p>
-                      <p className="font-medium dark:text-gray-200">{ride.duration.toFixed(0)} min</p>
-                    </div>
-                    
-                    {ride.rideMood && (
-                      <div className="col-span-2">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Ride Mood</p>
-                        <div className="flex items-center mt-1">
-                          {getMoodIcon(ride.rideMood)}
-                          <p className="font-medium dark:text-gray-200 ml-1">
-                            {ride.rideMood.charAt(0).toUpperCase() + ride.rideMood.slice(1)}
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
-              </Card>
-              
-              {ride.status === 'completed' && (
-                <SplitPayment rideId={ride.id} currentFare={ride.fare} />
-              )}
-              
-              {showRating && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Rate Your Ride</CardTitle>
-                    <CardDescription>How was your experience?</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-center space-x-2">
-                      {[1, 2, 3, 4, 5].map((rating) => (
-                        <Button
-                          key={rating}
-                          variant="ghost"
-                          className={`p-2 ${selectedRating >= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                          onClick={() => setSelectedRating(rating)}
-                        >
-                          <Star className={`h-8 w-8 ${selectedRating >= rating ? 'fill-yellow-400' : ''}`} />
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex justify-end space-x-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowRating(false)}
-                    >
-                      Skip
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsRatingOpen(false)}>
+                      Cancel
                     </Button>
-                    <Button 
-                      onClick={handleRateRide} 
-                      disabled={selectedRating === 0 || isSubmittingRating}
-                    >
-                      {isSubmittingRating ? 'Submitting...' : 'Submit Rating'}
+                    <Button onClick={handleRateRide} disabled={ratingValue === 0}>
+                      Submit Rating
                     </Button>
-                  </CardFooter>
-                </Card>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Driver Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {ride.driverId ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-12 w-12 rounded-full bg-gocabs-primary/20 flex items-center justify-center text-gocabs-primary font-medium text-lg">
-                          JD
-                        </div>
-                        <div>
-                          <p className="font-semibold">John Doe</p>
-                          <div className="flex items-center mt-1">
-                            <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                            <span className="text-sm ml-1">4.8</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Vehicle</p>
-                        <p className="font-medium dark:text-gray-200">Toyota Camry • ABC 123</p>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <Button variant="outline" size="sm" className="w-[48%]">
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          Contact
-                        </Button>
-                        
-                        <Button variant="outline" size="sm" className="w-[48%]">
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share Trip
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-6">
-                      <div className="mx-auto h-12 w-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <UserCheck className="h-6 w-6 text-gray-400" />
-                      </div>
-                      <p className="mt-2 text-gray-500 dark:text-gray-400">
-                        {ride.status === 'pending' ? 'Finding a driver...' : 'No driver assigned'}
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle>Pricing</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Base fare</span>
-                      <span className="font-medium dark:text-white">${(ride.fare * 0.7).toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Distance ({ride.distance.toFixed(1)} km)</span>
-                      <span className="font-medium dark:text-white">${(ride.fare * 0.2).toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-300">Time ({ride.duration.toFixed(0)} min)</span>
-                      <span className="font-medium dark:text-white">${(ride.fare * 0.1).toFixed(2)}</span>
-                    </div>
-                    
-                    {ride.weatherAdjustment && ride.weatherAdjustment !== 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-300">Weather adjustment</span>
-                        <span className="font-medium dark:text-white">
-                          {ride.weatherAdjustment > 0 ? '+' : '-'}${(Math.abs(ride.fare * ride.weatherAdjustment)).toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {ride.appliedDiscount && (
-                      <div className="flex justify-between text-green-600 dark:text-green-400">
-                        <span>Discount</span>
-                        <span>-${((ride.appliedDiscount / 100) * ride.fare).toFixed(2)}</span>
-                      </div>
-                    )}
-                    
-                    <Separator />
-                    
-                    <div className="flex justify-between font-semibold text-lg">
-                      <span>Total</span>
-                      <span>${ride.fare.toFixed(2)}</span>
-                    </div>
-                    
-                    {ride.isShared && (
-                      <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded text-sm text-green-700 dark:text-green-400 flex items-center">
-                        <Users className="h-4 w-4 mr-2" />
-                        <span>Shared ride - {ride.appliedDiscount}% saved</span>
-                      </div>
-                    )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {ride.status === 'completed' && (
+              <SplitPayment rideId={rideId as string} fare={ride.fare} />
+            )}
+
+            {ride.status === 'pending' && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="flex-1">
+                    <Ban className="h-4 w-4 mr-2" /> Cancel Ride
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will cancel your ride request.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Go Back</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancel}>Cancel Ride</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
+            {(ride.status === 'pending' || ride.status === 'accepted') && (
+              <Dialog open={isNewDestinationOpen} onOpenChange={setIsNewDestinationOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex-1">
+                    <Edit className="h-4 w-4 mr-2" /> Change Destination
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Change Destination</DialogTitle>
+                    <DialogDescription>
+                      Enter the new destination for your ride.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    <Label htmlFor="newDestination">New Destination</Label>
+                    <Input 
+                      id="newDestination"
+                      placeholder="Enter new destination address" 
+                      value={newDestination}
+                      onChange={(e) => setNewDestination(e.target.value)}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          
-          <div className="flex justify-center">
-            <Link to="/ride-history">
-              <Button variant="outline">View All Rides</Button>
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-48">
-          <p className="text-gray-500 mb-4">Ride not found</p>
-          <Link to="/dashboard">
-            <Button>Back to Dashboard</Button>
-          </Link>
-        </div>
-      )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsNewDestinationOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleChangeDestination} disabled={!newDestination}>
+                      Update Destination
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {(ride.status === 'accepted' || ride.status === 'in_progress') && (
+              <Dialog open={isAddStopOpen} onOpenChange={setIsAddStopOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="flex-1">
+                    <Plus className="h-4 w-4 mr-2" /> Add Stop
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add a Stop</DialogTitle>
+                    <DialogDescription>
+                      Enter the address for an additional stop on your route.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    <Label htmlFor="newStop">Stop Address</Label>
+                    <Input 
+                      id="newStop"
+                      placeholder="Enter stop address" 
+                      value={newStop}
+                      onChange={(e) => setNewStop(e.target.value)}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddStopOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddStop} disabled={!newStop}>
+                      Add Stop
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            <Button variant="outline" className="flex-1" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </DashboardLayout>
   );
 };
